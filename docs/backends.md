@@ -2,11 +2,11 @@
 
 HTML Surfaceは、HTMLElementの描画結果をTextureへ変換する処理だけをBackendへ委譲します。任意Meshとの関連付け、Material適用、UV／DOM座標変換、遮蔽、入力、複数Surface、所有権は`HtmlSurfaceManager`側の責務です。
 
-## RC1の選択肢
+## リリース候補の選択肢
 
 | 指定 | 選択 | 安定性 |
 |---|---|---|
-| `auto` | 常に`polyfill` | RC1の既定。stableブラウザ優先 |
+| `auto` | 常に`polyfill` | リリース候補の既定。stableブラウザ優先 |
 | `polyfill` | `three-html-render`を使う | Tier 1／2の検証対象 |
 | `native` | native HTML-in-Canvasが検出できる場合のみ | experimental。未検出なら`backend-unavailable` |
 
@@ -20,7 +20,7 @@ HTML Surfaceは、HTMLElementの描画結果をTextureへ変換する処理だ�
 
 ## native Backend
 
-Canvasの`requestPaint()`とWebGL contextの`texElementImage2D`を検出し、利用者が`backend: 'native'`を明示した場合だけ選びます。RC1では互換性保証外です。`CapabilityReport`に`native-backend-experimental`警告が入ります。
+Canvasの`requestPaint()`とWebGL contextの`texElementImage2D`を検出し、利用者が`backend: 'native'`を明示した場合だけ選びます。リリース候補では互換性保証外です。`CapabilityReport`に`native-backend-experimental`警告が入ります。
 
 ## experimentalエントリーポイント
 

@@ -33,7 +33,7 @@ export function assertPublicPackage({ files, manifest }) {
 
   if (
     manifest.name !== 'html-surface-three'
-    || manifest.version !== '0.1.0-rc.1'
+    || manifest.version !== '0.1.0-rc.2'
     || manifest.license !== 'MIT'
     || manifest.publishConfig?.access !== 'public'
   ) {

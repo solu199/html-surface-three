@@ -54,7 +54,7 @@ DOMオーバーレイではありません。UIはTextureとしてアップロ�
 
 ## インストール
 
-`0.1.0-rc.1`はリリース候補で、npmの`next` dist-tagから公開しています。
+`0.1.0-rc.2`はリリース候補で、npmの`next` dist-tagから公開しています。
 
 ```bash
 npm install html-surface-three@next three@0.185.1
@@ -169,7 +169,7 @@ Backend SPIは`html-surface-three/experimental`へ隔離し、stable facadeをTh
 
 - polyfillはSVG `foreignObject`とTexture uploadのコストを持つ
 - CORS media、iframe、DRM、複雑なCSS、native form外観はブラウザ制約を受ける
-- UV重複、別UV channel、`SkinnedMesh`、`InstancedMesh`はRC1保証外
+- UV重複、別UV channel、`SkinnedMesh`、`InstancedMesh`はリリース候補の保証外
 - 大規模sceneではrecursive Raycastの最適化が必要
 - DOMアクセシビリティツリーと3D上の見た目の位置は一致しない
 - React Three Fiber／WebXR Adapterは将来機能
