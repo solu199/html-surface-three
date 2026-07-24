@@ -1,9 +1,27 @@
 {
   "name": "html-surface-three",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0-rc.1",
+  "private": false,
   "type": "module",
-  "description": "HTMLElementを操作可能なThree.js Mesh表面として管理する実験的ライブラリ",
+  "description": "HTMLElementを操作可能なThree.js Mesh表面として管理するHTML Surfaceライブラリ",
+  "license": "MIT",
+  "author": "HTML Surface Three contributors",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/solu199/html-surface-three.git"
+  },
+  "bugs": {
+    "url": "https://github.com/solu199/html-surface-three/issues"
+  },
+  "homepage": "https://github.com/solu199/html-surface-three#readme",
+  "keywords": [
+    "three.js",
+    "html",
+    "texture",
+    "webgl",
+    "interaction",
+    "react"
+  ],
   "main": "./dist/html-surface-three.js",
   "module": "./dist/html-surface-three.js",
   "types": "./dist/index.d.ts",
@@ -11,12 +29,22 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/html-surface-three.js"
+    },
+    "./experimental": {
+      "types": "./dist/experimental.d.ts",
+      "import": "./dist/experimental.js"
     }
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
   ],
+  "sideEffects": false,
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
   "scripts": {
     "dev": "vite",
     "typecheck": "tsc --noEmit",
