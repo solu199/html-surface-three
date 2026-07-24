@@ -16,7 +16,7 @@
 
 Playwright WebKitは実Safariそのものではありません。Safariの完全保証を意味しません。
 
-GitHub-hosted runnerには物理GPUがないため、CI時のFirefoxだけ`webgl.force-enabled`を有効にし、software WebGLで同じsmokeを実行します。通常のローカル実行と利用者環境のFirefox設定は変更しません。
+GitHub-hosted runnerには物理GPUがないため、CI時のChrome／EdgeはANGLE + SwiftShader、Firefoxは`webgl.force-enabled`を使い、software WebGLで同じシナリオを実行します。これらはCIの起動設定だけに限定し、通常のローカル実行や利用者環境のブラウザ設定は変更しません。
 
 ## 操作ごとの範囲
 
