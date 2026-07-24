@@ -1,6 +1,6 @@
 # APIリファレンス
 
-この文書は`html-surface-three@0.1.0-rc.1`の安定エントリーポイントを説明します。描画Backendの差し替えAPIは[`html-surface-three/experimental`](backends.md)に分離されています。
+この文書は`html-surface-three@0.1.0-rc.2`の安定エントリーポイントを説明します。描画Backendの差し替えAPIは[`html-surface-three/experimental`](backends.md)に分離されています。
 
 ## `HtmlSurfaceManager`
 

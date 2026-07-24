@@ -1,5 +1,13 @@
 # 変更履歴
 
+## 0.1.0-rc.2
+
+公開日: 2026-07-25
+
+### 修正
+
+- polyfill BackendでSurface hostがcanvas fallback subtreeへ再配置された場合に、canvasへ登録されたcapture listenerがDOM activationを遮断し、buttonなどのclick handlerが実行されない問題を修正しました（[#6](https://github.com/solu199/html-surface-three/issues/6)）。
+
 ## 0.1.0-rc.1
 
 公開日: 2026-07-24

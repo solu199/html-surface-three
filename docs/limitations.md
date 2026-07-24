@@ -12,7 +12,7 @@
 - 入力可能なSurfaceにはRaycastで取得できるUVが必要です。
 - UVが重複するMeshは、一つの交差UVだけでは元のDOM位置を一意に特定できません。
 - Surfaceごとの別UV channelはまだ選択できません。
-- 極端に歪んだ三角形、SkinnedMesh、InstancedMeshはRC1の保証対象外です。
+- 極端に歪んだ三角形、SkinnedMesh、InstancedMeshはリリース候補の保証対象外です。
 - 複数Materialは`materialIndex`で扱えますが、Geometry groupの複雑な構成は個別確認が必要です。
 
 ## 入力とアクセシビリティ
@@ -35,4 +35,4 @@
 - `html-surface-three/experimental`のBackend SPIはsemver互換性保証外です。
 - native HTML-in-Canvasは実験扱いで、stable Tierには含みません。
 - React Three FiberとWebXR向けの統合層は将来機能です。Vanilla coreからは利用できますが専用Adapterはありません。
-- `0.1.0-rc.1`はnpmの`next` dist-tagで公開します。正式版の`latest`保証ではありません。
+- `0.1.0-rc.2`はnpmの`next` dist-tagで公開します。正式版の`latest`保証ではありません。

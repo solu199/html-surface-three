@@ -4,7 +4,7 @@ import { assertPublicPackage } from '../scripts/package-contents.mjs';
 
 const manifest = {
   name: 'html-surface-three',
-  version: '0.1.0-rc.1',
+  version: '0.1.0-rc.2',
   license: 'MIT',
   publishConfig: {
     access: 'public',
