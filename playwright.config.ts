@@ -53,6 +53,13 @@ export default defineConfig({
       testMatch: /smoke/,
       use: {
         ...devices['Desktop Firefox'],
+        launchOptions: process.env.CI
+          ? {
+            firefoxUserPrefs: {
+              'webgl.force-enabled': true,
+            },
+          }
+          : undefined,
       },
     },
     {
