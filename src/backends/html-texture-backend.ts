@@ -5,6 +5,7 @@ import {
   type Texture,
 } from 'three';
 import { installHtmlInCanvasPolyfill } from 'three-html-render/polyfill';
+import { adaptLegacyHtmlTextureUpload } from './polyfill-compat';
 
 export type BackendKind = 'native' | 'polyfill';
 
@@ -48,11 +49,29 @@ export function createHtmlTextureBackend(
     ? 'native'
     : 'polyfill';
 
+  canvas.setAttribute('layoutsubtree', '');
+
   if (kind === 'polyfill') {
     installHtmlInCanvasPolyfill();
-  }
+    const contextTypes = [
+      globalThis.WebGLRenderingContext,
+      globalThis.WebGL2RenderingContext,
+    ];
 
-  canvas.setAttribute('layoutsubtree', '');
+    for (const contextType of contextTypes) {
+      const prototype = contextType?.prototype as
+        | (object & {
+          texElementImage2D?: (...args: any[]) => unknown;
+        })
+        | undefined;
+
+      if (typeof prototype?.texElementImage2D === 'function') {
+        adaptLegacyHtmlTextureUpload(
+          prototype as Parameters<typeof adaptLegacyHtmlTextureUpload>[0],
+        );
+      }
+    }
+  }
 
   const requestPaint = () => {
     canvas.requestPaint?.();
@@ -62,10 +81,6 @@ export function createHtmlTextureBackend(
     kind,
     requestPaint,
     mount(element) {
-      if (element.parentElement !== canvas) {
-        canvas.append(element);
-      }
-
       const texture = new HTMLTexture(element);
       texture.colorSpace = SRGBColorSpace;
       texture.minFilter = LinearFilter;

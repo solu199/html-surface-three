@@ -304,11 +304,11 @@ Expected: 全テストPASS、TypeScript error 0、`dist/html-surface-three.js`�
 - Consumes: `HtmlSurfaceManager`
 - Produces: stable Chromiumで操作可能なReact Surface、Vanilla Surface、遮蔽物、診断HUD
 
-- [ ] **Step 1: HTML entryとCSSを作る**
+- [x] **Step 1: HTML entryとCSSを作る**
 
 `index.html`には`canvas#scene`、`aside#hud`、WebGL失敗時の`div#fallback`を置き、`/src/demo/main.tsx`をmoduleとして読む。`.surface-source`は固定width／height、背景色、フォーム部品、スクロール領域を自身のclassだけでスタイルし、Canvas親セレクターへ依存させない。
 
-- [ ] **Step 2: React操作パネルを作る**
+- [x] **Step 2: React操作パネルを作る**
 
 `ControlPanel`は次を持つ。
 
@@ -319,7 +319,7 @@ Expected: 全テストPASS、TypeScript error 0、`dist/html-surface-three.js`�
 
 状態更新はReactの`useState`だけで行い、コアライブラリ固有hookは作らない。
 
-- [ ] **Step 3: Three.jsシーンと2つのSurfaceを作る**
+- [x] **Step 3: Three.jsシーンと2つのSurfaceを作る**
 
 React elementは640×420、Vanilla elementは360×240とする。React panelはモニターのPlaneGeometryへ、Vanilla panelは別の傾いたPlaneGeometryへ登録する。React rootはSurface登録後にmountし、入力guardがReactのdelegated listenerより先に登録される順序にする。
 
@@ -327,13 +327,13 @@ React elementは640×420、Vanilla elementは360×240とする。React panelは�
 
 HUDはbackend、hit kind、object名、surface ID、UV、DOM座標を表示する。HUD自体は検証用で、library APIに含めない。
 
-- [ ] **Step 4: demo buildを通す**
+- [x] **Step 4: demo buildを通す**
 
 Run: `npm run build:demo`
 
 Expected: `dist-demo/index.html`とassetが生成され、build error 0。
 
-- [ ] **Step 5: stable Chromiumで縦切りを確認する**
+- [x] **Step 5: stable Chromiumで縦切りを確認する**
 
 Run: `npm run dev -- --host 127.0.0.1`
 
@@ -356,7 +356,7 @@ Run: `npm run dev -- --host 127.0.0.1`
 **Interfaces:**
 - Produces: 第三者が試せる日本語ドキュメントと検証済み成果物
 
-- [ ] **Step 1: READMEを書く**
+- [x] **Step 1: READMEを書く**
 
 READMEに以下をこの順で記載する。
 
@@ -371,13 +371,13 @@ READMEに以下をこの順で記載する。
 9. Vanilla APIの使用例
 10. Reactは通常のHTMLElementを作るだけという使用例
 
-- [ ] **Step 2: 全検証を実行する**
+- [x] **Step 2: 全検証を実行する**
 
 Run: `npm run build`
 
 Expected: typecheck、unit test、library build、demo buildがすべて成功する。
 
-- [ ] **Step 3: ブラウザを再確認する**
+- [x] **Step 3: ブラウザを再確認する**
 
 stable ChromiumでTask 3の確認項目を再実行し、console errorとuncaught exceptionが0であることを確認する。視覚状態をスクリーンショットで確認する。
 
