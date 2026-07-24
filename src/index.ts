@@ -21,3 +21,14 @@ export {
   type UvPoint,
   type UvTransform,
 } from './core/coordinates';
+
+export {
+  HtmlSurfaceError,
+  type HtmlSurfaceErrorCode,
+} from './core/errors';
+
+export {
+  type CapabilityReport,
+  type CapabilityWarning,
+  type CapabilityWarningCode,
+} from './core/capabilities';
