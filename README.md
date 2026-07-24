@@ -30,6 +30,8 @@ HTMLElementを任意のThree.js Meshへ関連付け、表示と入力を一つ�
 
 コアはVanilla TypeScriptです。Reactは通常の`HTMLElement`を生成する利用例としてだけ使っています。
 
+将来は`HTMLImageElement`と`HTMLVideoElement`を同じSurface管理へ渡し、単独メディアではThree.jsの画像／動画Textureを直接使い、テキストやフォームとの合成時だけHTML描画backendを使う方針です。メディア対応のためにMesh関連付け、UV変換、遮蔽、ライフサイクルを作り直さない境界を維持します。
+
 ```mermaid
 flowchart LR
   DOM["HTMLElement<br/>Vanilla / ReactDOM"] --> Backend["Texture backend<br/>native / polyfill"]
@@ -169,13 +171,15 @@ surface.dispose();
 3. Surface layer、対象object集合、BVHを使ったRaycast最適化
 4. WebXR controller／hand rayを同じhit resolverへ渡す入力adapter
 5. React Three Fiber向けの薄いhook／component。ただしVanilla coreは維持する
-6. backend差し替えAPIの安定化と、独自Canvas rasterizer／3DネイティブUIのfallback検討
-7. UV channel、Geometry group、複数Material、curved／skinned／instanced Meshの検証
-8. package公開前のAPI整理、semver方針、example追加、browser E2E
+6. `ImageTexture`／`VideoTexture`系の直接backendと、HTML＋メディア合成backendを同じTexture handleへ収束
+7. 静止画、動画、HTML操作パネルからの再生制御、HTML＋メディア合成の実行可能なexample
+8. backend差し替えAPIの安定化と、3DネイティブUIなど別方式のfallback検討
+9. UV channel、Geometry group、複数Material、curved／skinned／instanced Meshの検証
+10. package公開前のAPI整理、semver方針、example追加、browser E2E
 
 ## 非目標
 
-このリポジトリは、HTMLラスタライザー、UIコンポーネント集、DOMオーバーレイ、React専用ライブラリではありません。
+このリポジトリは、HTMLラスタライザー、UIコンポーネント集、DOMオーバーレイ、React専用ライブラリ、画像／動画decoder、メディアプレイヤーではありません。再生、停止、シーク、音声、autoplay制約はブラウザと既存のメディアAPIへ委ねます。
 
 ## 検証状況
 

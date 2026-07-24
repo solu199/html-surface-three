@@ -14,6 +14,7 @@ HTMLをTextureへ変換する技術自体には既存の選択肢がある。一
 | --- | --- | --- |
 | [WICG HTML-in-Canvas](https://github.com/WICG/html-in-canvas) | Canvas配下のHTMLを2D Canvas、WebGL、WebGPUへ渡し、ブラウザのレイアウトやhit testingを活用する実験API | native描画バックエンド候補。一般利用できない環境があるため、現時点ではこれだけに依存しない |
 | [Three.js HTMLTexture](https://threejs.org/docs/pages/HTMLTexture.html) | HTMLElementをThree.js Textureとしてアップロードする | Texture生成の低レベル基盤。Mesh関連付け、遮蔽、複数Surface管理は上位層の責務 |
+| Three.js Texture / VideoTexture | 静止画、Canvas、video要素をHTMLラスタライズなしでTexture化する | 単独メディア向けの将来backend。HTML合成が不要な用途で余分な再ラスタライズを避ける |
 | [Three.js HTMLMesh](https://threejs.org/docs/pages/HTMLMesh.html) | HTMLを簡易的にCanvasTexture化したMeshを作る | 利便性は高いが、対応CSSとイベント変換に限界がある。任意Meshを主語にする本案とは責務が異なる |
 | [three-html-render](https://github.com/repalash/three-html-render) | HTML-in-Canvas polyfill、HTML Texture、Raycast向け基盤を提供する | stableブラウザ向け描画フォールバック。本プロトタイプではpolyfillだけを交換可能なbackend内に閉じ込める |
 | [Canvas UI](https://canvasui.dev/docs) | HTML-in-Canvasを使い、ライブHTMLへWebGL表現を重ねる | ページ表現・エフェクトが主眼。任意の3D MeshとUIをSurfaceとして管理する層とは異なる |
@@ -48,9 +49,10 @@ Textureだけでは、入力欄のIME、selection、focus、スクロール、�
 - 複数Surfaceのうち、同時に一つだけをDOM hit testingへ整列する
 - DOM、Texture、イベント、Material／Geometryの所有権を明示して破棄する
 - native、polyfill、将来の別rendererを差し替えられるbackend境界を保つ
+- 単独画像、単独動画、HTML＋メディア合成で更新方式を変えても、同じMesh／入力／所有権管理を再利用する
 
 ## 作る価値の判定
 
 現段階の判定は「研究用ライブラリとして作る価値がある」。理由は、描画primitiveの再発明を避けながら、実アプリが必要とする関連付けと入力の統合を検証できたためである。
 
-ただし、公開パッケージとして安定化する前に、複数ブラウザ、複数Material／UV channel、pointer capture、IME、タッチ、WebXR controller ray、大量Surface時の性能を追加検証する必要がある。
+ただし、公開パッケージとして安定化する前に、複数ブラウザ、複数Material／UV channel、pointer capture、IME、タッチ、WebXR controller ray、大量Surface時の性能を追加検証する必要がある。画像／動画についても、直接TextureとHTML合成の両経路、CORS、autoplay、DRM、更新停止、resource所有権を検証対象に加える。
