@@ -4,6 +4,7 @@ const REQUIRED_FILES = [
   'dist/index.d.ts',
   'dist/experimental.d.ts',
   'README.md',
+  'README.ja.md',
   'LICENSE',
   'CHANGELOG.md',
   'package.json',
@@ -11,6 +12,7 @@ const REQUIRED_FILES = [
 
 const ALLOWED_ROOT_FILES = new Set([
   'README.md',
+  'README.ja.md',
   'LICENSE',
   'CHANGELOG.md',
   'package.json',

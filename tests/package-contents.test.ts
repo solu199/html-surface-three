@@ -17,6 +17,7 @@ const publicFiles = [
   'dist/index.d.ts',
   'dist/experimental.d.ts',
   'README.md',
+  'README.ja.md',
   'LICENSE',
   'CHANGELOG.md',
   'package.json',
