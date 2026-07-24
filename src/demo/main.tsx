@@ -48,7 +48,6 @@ try {
     canvas,
     antialias: true,
     powerPreference: 'high-performance',
-    preserveDrawingBuffer: e2eMode,
   });
 } catch (error) {
   const message = error instanceof Error ? error.message : String(error);
@@ -219,6 +218,14 @@ function syncAnimationButton() {
     : 'Pause motion';
 }
 
+let e2eRenderRequested = true;
+let lastE2eRenderEnd = Number.NEGATIVE_INFINITY;
+const e2eFrameIntervalMs = 250;
+
+function requestE2eRender() {
+  e2eRenderRequested = true;
+}
+
 if (e2eMode) {
   placeOccluder(false);
 }
@@ -228,6 +235,7 @@ function toggleAnimation() {
   if (nextPaused) fixedAnimationTime = currentAnimationTime;
   animationPaused = nextPaused;
   syncAnimationButton();
+  requestE2eRender();
 }
 
 function toggleOcclusion() {
@@ -235,6 +243,7 @@ function toggleOcclusion() {
   occlusionButton.textContent = occluded
     ? 'Hide occlusion'
     : 'Show occlusion';
+  requestE2eRender();
 }
 
 animationButton.addEventListener('click', toggleAnimation);
@@ -248,6 +257,7 @@ if (e2eMode) {
       fixedAnimationTime = seconds;
       applyMonitorMotion(seconds);
       if (occluded) placeOccluder(true);
+      requestE2eRender();
     },
     setAnimationPaused(paused) {
       if (paused && !animationPaused) {
@@ -255,12 +265,14 @@ if (e2eMode) {
       }
       animationPaused = paused;
       syncAnimationButton();
+      requestE2eRender();
     },
     setOccluded(value) {
       placeOccluder(value);
       occlusionButton.textContent = occluded
         ? 'Hide occlusion'
         : 'Show occlusion';
+      requestE2eRender();
     },
     pointFor(testId, xRatio, yRatio) {
       const reactTarget = reactElement.querySelector(
@@ -312,15 +324,26 @@ function render(time: number) {
     blocker.updateMatrixWorld(true);
   }
 
-  controls.update();
-  manager.update();
-  updateHud(latestDebug);
-  renderer.render(scene, camera);
+  const shouldRender = (
+    !e2eMode
+    || e2eRenderRequested
+    || time - lastE2eRenderEnd >= e2eFrameIntervalMs
+  );
+  if (shouldRender) {
+    controls.update();
+    manager.update();
+    updateHud(latestDebug);
+    renderer.render(scene, camera);
 
-  if (firstFrame) {
-    firstFrame = false;
-    loading.remove();
-    resolveReady();
+    if (e2eMode) {
+      e2eRenderRequested = false;
+      lastE2eRenderEnd = performance.now();
+    }
+    if (firstFrame) {
+      firstFrame = false;
+      loading.remove();
+      resolveReady();
+    }
   }
 
   animationFrame = requestAnimationFrame(render);
@@ -345,6 +368,7 @@ function resize() {
     0,
   );
   camera.updateProjectionMatrix();
+  requestE2eRender();
 }
 
 window.addEventListener('resize', resize);
