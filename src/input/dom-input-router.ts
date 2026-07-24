@@ -226,6 +226,21 @@ export class DomInputRouter {
       });
     }, true);
 
+    for (const eventName of [
+      'pointerdown',
+      'pointermove',
+      'pointerup',
+      'pointercancel',
+      'click',
+      'dblclick',
+      'contextmenu',
+      'wheel',
+    ]) {
+      listen<Event>(eventName, (event) => {
+        event.stopPropagation();
+      });
+    }
+
     this.surfaceCleanup.set(surface, cleanup);
     this.syncInertState();
   }
@@ -319,6 +334,12 @@ export class DomInputRouter {
     const canvas = this.options.canvas;
 
     const onPointerMove = (event: PointerEvent) => {
+      if (
+        isSyntheticPointerEvent(event)
+        || this.isSurfaceEventTarget(event.target)
+      ) {
+        return;
+      }
       this.rememberPointer(event);
       const session = this.sessions.get(event.pointerId);
       if (session?.source === 'canvas') {
@@ -332,6 +353,12 @@ export class DomInputRouter {
     };
 
     const onPointerDown = (event: PointerEvent) => {
+      if (
+        isSyntheticPointerEvent(event)
+        || this.isSurfaceEventTarget(event.target)
+      ) {
+        return;
+      }
       this.rememberPointer(event);
       const hit = this.routeAndActivate(event.clientX, event.clientY);
       if (!hit?.surface.enabled) {
@@ -368,6 +395,12 @@ export class DomInputRouter {
     };
 
     const onPointerUp = (event: PointerEvent) => {
+      if (
+        isSyntheticPointerEvent(event)
+        || this.isSurfaceEventTarget(event.target)
+      ) {
+        return;
+      }
       this.rememberPointer(event);
       const session = this.sessions.get(event.pointerId);
       if (session?.source !== 'canvas') {
@@ -386,6 +419,12 @@ export class DomInputRouter {
     };
 
     const onPointerCancel = (event: PointerEvent) => {
+      if (
+        isSyntheticPointerEvent(event)
+        || this.isSurfaceEventTarget(event.target)
+      ) {
+        return;
+      }
       const session = this.sessions.get(event.pointerId);
       if (session?.source !== 'canvas') {
         return;
@@ -401,6 +440,9 @@ export class DomInputRouter {
     };
 
     const onWheel = (event: WheelEvent) => {
+      if (this.isSurfaceEventTarget(event.target)) {
+        return;
+      }
       this.lastPointer = {
         clientX: event.clientX,
         clientY: event.clientY,
@@ -446,6 +488,16 @@ export class DomInputRouter {
       () => canvas.removeEventListener('pointercancel', onPointerCancel, true),
       () => canvas.removeEventListener('wheel', onWheel, true),
     );
+  }
+
+  private isSurfaceEventTarget(target: EventTarget | null): boolean {
+    if (!(target instanceof Node)) {
+      return false;
+    }
+
+    return [...this.surfaces].some((surface) => (
+      surface.element.contains(target)
+    ));
   }
 
   private routeAndActivate(

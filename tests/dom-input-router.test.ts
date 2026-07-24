@@ -23,12 +23,73 @@ function pointer(
   });
 }
 
-function createHarness() {
+function createHarness(options: {
+  forwardCanvasEventsThroughHost?: boolean;
+  rootUnderCanvas?: boolean;
+} = {}) {
   const canvas = document.createElement('canvas');
+  const host = document.createElement('div');
   const root = document.createElement('div');
   const button = document.createElement('button');
   root.append(button);
-  document.body.append(canvas, root);
+  if (options.rootUnderCanvas) {
+    canvas.append(root);
+  } else {
+    host.append(root);
+  }
+  document.body.append(canvas, host);
+  if (options.forwardCanvasEventsThroughHost) {
+    const forwarded = new Map<
+      EventListenerOrEventListenerObject,
+      Map<string, EventListener>
+    >();
+    const nativeAdd = canvas.addEventListener.bind(canvas);
+    const nativeRemove = canvas.removeEventListener.bind(canvas);
+    Object.defineProperties(canvas, {
+      addEventListener: {
+        configurable: true,
+        value(
+          type: string,
+          listener: EventListenerOrEventListenerObject | null,
+          eventOptions?: AddEventListenerOptions | boolean,
+        ) {
+          if (!listener) return;
+          nativeAdd(type, listener, eventOptions);
+          if (!type.startsWith('pointer')) return;
+          const forwardedListener: EventListener = (event) => {
+            if (typeof listener === 'function') {
+              listener.call(canvas, event);
+            } else {
+              listener.handleEvent(event);
+            }
+          };
+          const byType = forwarded.get(listener) ?? new Map();
+          byType.set(type, forwardedListener);
+          forwarded.set(listener, byType);
+          host.addEventListener(type, forwardedListener, eventOptions);
+        },
+      },
+      removeEventListener: {
+        configurable: true,
+        value(
+          type: string,
+          listener: EventListenerOrEventListenerObject | null,
+          eventOptions?: EventListenerOptions | boolean,
+        ) {
+          if (!listener) return;
+          nativeRemove(type, listener, eventOptions);
+          const forwardedListener = forwarded.get(listener)?.get(type);
+          if (forwardedListener) {
+            host.removeEventListener(
+              type,
+              forwardedListener,
+              eventOptions,
+            );
+          }
+        },
+      },
+    });
+  }
   const surface: InputSurface = {
     id: 'panel',
     element: root,
@@ -59,6 +120,59 @@ function createHarness() {
 }
 
 describe('DomInputRouter', () => {
+  it('polyfill hostへ転送された複製PointerEventで再入しない', () => {
+    const { button, canvas } = createHarness({
+      forwardCanvasEventsThroughHost: true,
+    });
+    const click = vi.fn();
+    button.addEventListener('click', click);
+
+    canvas.dispatchEvent(pointer('pointerdown', {
+      pointerId: 4,
+      buttons: 1,
+    }));
+    canvas.dispatchEvent(pointer('pointerup', {
+      pointerId: 4,
+      buttons: 0,
+    }));
+
+    expect(click).toHaveBeenCalledOnce();
+  });
+
+  it('Canvas配下へ配送した複製PointerEventで再入しない', () => {
+    const { button, canvas } = createHarness({
+      rootUnderCanvas: true,
+    });
+    const click = vi.fn();
+    button.addEventListener('click', click);
+
+    canvas.dispatchEvent(pointer('pointerdown', {
+      pointerId: 6,
+      buttons: 1,
+    }));
+    canvas.dispatchEvent(pointer('pointerup', {
+      pointerId: 6,
+      buttons: 0,
+    }));
+
+    expect(click).toHaveBeenCalledOnce();
+  });
+
+  it('Surface内部のnative pointerをhost上のCanvas listenerへ漏らさない', () => {
+    const { button, canvas } = createHarness({
+      forwardCanvasEventsThroughHost: true,
+    });
+    const controlsPointerDown = vi.fn();
+    canvas.addEventListener('pointerdown', controlsPointerDown);
+
+    button.dispatchEvent(pointer('pointerdown', {
+      pointerId: 8,
+      buttons: 1,
+    }));
+
+    expect(controlsPointerDown).not.toHaveBeenCalled();
+  });
+
   it('Canvasから始まるtouch downをDOM targetへ配送しclickまで完了する', () => {
     const { button, canvas, router } = createHarness();
     const down = vi.fn();
@@ -137,7 +251,9 @@ describe('DomInputRouter', () => {
   });
 
   it('Surface DOMへ届いたnative pointerdownを複製しない', () => {
-    const { button } = createHarness();
+    const { button } = createHarness({
+      forwardCanvasEventsThroughHost: true,
+    });
     const down = vi.fn();
     button.addEventListener('pointerdown', down);
 
