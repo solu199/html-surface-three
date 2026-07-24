@@ -1,64 +1,74 @@
-# HTML Surface Three
+<h1 align="center">HTML Surface Three</h1>
 
-HTMLElementを任意のThree.js Meshへ関連付け、表示、入力、遮蔽、複数Surface、ライフサイクルを一つの単位で扱う実験的ライブラリです。`0.1.0-rc.1`はprivate GitHubリポジトリ内のリリース候補で、npmレジストリにはまだ公開していません。
+<p align="center">
+  Put interactive HTML and React UI on real Three.js meshes—without giving up UV mapping, depth occlusion, browser input, or lifecycle control.
+</p>
 
-![動く3Dモニター上のReact HTML Surface](docs/design/html-surface-demo-browser.png)
+<p align="center">
+  <a href="https://solu199.github.io/html-surface-three/"><strong>Live demo</strong></a>
+  ·
+  <a href="https://github.com/solu199/html-surface-three/blob/main/README.ja.md">日本語</a>
+  ·
+  <a href="https://github.com/solu199/html-surface-three/blob/main/docs/api.md">API</a>
+  ·
+  <a href="https://github.com/solu199/html-surface-three/blob/main/docs/browser-support.md">Browser support</a>
+</p>
 
-## HTML Surfaceとは
+<p align="center">
+  <a href="https://www.npmjs.com/package/html-surface-three"><img alt="npm next version" src="https://img.shields.io/npm/v/html-surface-three/next?label=npm%20next&color=59d8c4"></a>
+  <a href="https://github.com/solu199/html-surface-three/actions/workflows/ci.yml"><img alt="CI status" src="https://github.com/solu199/html-surface-three/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/solu199/html-surface-three/blob/main/LICENSE"><img alt="MIT license" src="https://img.shields.io/npm/l/html-surface-three"></a>
+  <img alt="Three.js r184 to r185" src="https://img.shields.io/badge/three.js-r184%E2%80%93r185-111111">
+</p>
 
-**HTML Surface**は単なるHTML Textureではありません。HTMLElementを描画ソース、Three.js Meshを表示対象として、次を一単位で管理する抽象化です。
+<p align="center">
+  <a href="https://solu199.github.io/html-surface-three/">
+    <img alt="A React control center running on a moving Three.js monitor, with UV and input diagnostics" src="https://raw.githubusercontent.com/solu199/html-surface-three/main/.github/readme.gif" width="1200">
+  </a>
+</p>
 
-- HTML由来Textureの生成と更新
-- Textureを適用するMaterial、Materialスロット、map property
-- Raycast交差UVからDOM座標への変換
-- 実DOMのbrowser hit testingを利用する入力ルーティング
-- scene内の別Meshによる表示・入力の遮蔽
-- DOM、Texture、listener、Material／Geometryの所有権と破棄
+## What is an HTML Surface?
 
-HTML-in-Canvas、Three.js `HTMLTexture`、`three-html-render`は交換可能な描画Backendまたは低レベル基盤として扱います。ライブラリの独自価値は、任意Meshへの関連付け、遮蔽を含む入力、複数Surface、ライフサイクルの協調管理にあります。
+An **HTML Surface** is more than an HTML texture. It treats an `HTMLElement` as the rendering source and a Three.js `Mesh` as the display target, then manages these concerns as one unit:
 
-```mermaid
-flowchart LR
-  DOM["HTMLElement<br/>Vanilla / React"] --> Backend["Texture Backend<br/>polyfill / native"]
-  Backend --> Binding["Material / UV Binding"]
-  Binding --> Mesh["任意のThree.js Mesh"]
-  Input["Pointer / Wheel<br/>将来: XR ray"] --> Raycast["scene Raycast<br/>遮蔽判定"]
-  Raycast --> Mapping["UV → DOM座標"]
-  Mapping --> DOM
-  Manager["HtmlSurfaceManager"] --- DOM
-  Manager --- Binding
-  Manager --- Raycast
-```
+- HTML-derived texture creation and invalidation
+- material slot, map property, and texture transform binding
+- raycast UV to DOM coordinate mapping
+- browser-native hit testing, focus, keyboard, pointer, wheel, and touch routing
+- input occlusion by ordinary scene meshes
+- multiple surfaces, ownership, restoration, and disposal
 
-## 30秒で試す
+HTML-in-Canvas, Three.js `HTMLTexture`, and `three-html-render` are replaceable rendering Backends or low-level building blocks. The library's value lives above them: binding any UV-mapped Mesh, routing input through the scene, and keeping the whole surface lifecycle coherent.
 
-必要環境はNode.js `^20.19.0`または`>=22.12.0`です。privateリポジトリへアクセスできる環境で実行します。
+## Why not just an HTML texture?
+
+| A rendering primitive gives you | HTML Surface Three adds |
+|---|---|
+| DOM → pixels | Backend selection and explicit invalidation |
+| A Texture | Mesh, material slot, map property, and UV transform binding |
+| A visual result | UV → DOM targeting and browser interaction |
+| One rendered element | Multiple-surface registry and ownership |
+| Mesh depth while rendering | The same scene-aware occlusion for input |
+
+This is not a DOM overlay. The UI is uploaded as a Texture, so it follows Mesh deformation, camera perspective, depth testing, and occlusion.
+
+## Install
+
+`0.1.0-rc.1` is a release candidate and is published under the `next` dist-tag.
 
 ```bash
-git clone git@github.com:solu199/html-surface-three.git
-cd html-surface-three
-npm install
-npm run dev
+npm install html-surface-three@next three@0.185.1
 ```
 
-表示されたURLをstable ChromeまたはEdgeで開いてください。中央の動くモニターにReact製サイト、右側にVanilla DOM製の別Surfaceが表示されます。button、navigation、input、checkbox、range drag、scroll、遮蔽の有効／無効を3D空間から操作できます。
+Requirements:
 
-## 実現できたこと
-
-- Planeに限定せず、UVを持つ既存Meshと任意のMaterialプロパティへHTML UIを適用
-- 同一MeshのMaterialスロットを区別し、Texture transformまたは独自UV変換を入力座標へ反映
-- button、text input、checkbox、range、wheel／scroll、keyboard、composition、touchを3D空間から操作
-- Pointer Captureを保持し、drag中にMesh外へ出ても操作を完了
-- scene全体の最前面hitを使い、通常Meshによる遮蔽中は背後のSurfaceへ入力しない
-- 動くMesh、Camera、遮蔽物を`manager.update()`で毎フレーム追跡
-- 一つのManagerでReactとVanillaを含む複数Surfaceを管理
-- Materialの元のmap、HTMLElementのstyle、Texture、observer、listenerを所有権に従って復元／破棄
-- stable優先のpolyfill Backend、明示選択式native Backend、CapabilityReport、型付きエラー
-- Chrome／Edgeの全E2E、Firefox／WebKit smoke、視覚回帰、tarball consumer検証
-
-Reactは通常のHTMLElementを生成する利用例です。コアAPIはVanilla TypeScriptで、Reactへ依存しません。
+- Node.js `^20.19.0` or `>=22.12.0`
+- Three.js `>=0.184.0 <0.186.0`
+- a stable browser with WebGL
 
 ## Vanilla API
+
+The core is framework-independent. Give the manager a live `HTMLElement` and an existing Mesh with UVs:
 
 ```ts
 import * as THREE from 'three';
@@ -100,16 +110,16 @@ frame();
 await surface.ready;
 surface.invalidate();
 
-// cleanup
+// Cleanup
 surface.dispose();
 manager.dispose();
 ```
 
-`disposeMaterial`と`disposeGeometry`は既定で`false`です。利用者所有のThree.js resourceをライブラリが勝手に破棄しません。
+`disposeMaterial` and `disposeGeometry` default to `false`. Resources owned by your application are not destroyed implicitly.
 
-## Reactパネル
+## React panel
 
-React専用Adapterは不要です。同じHTMLElementへ通常どおりmountします。
+React is an integration example, not a core dependency. Mount React into an ordinary element and pass that element to the same Vanilla API:
 
 ```tsx
 import { createRoot } from 'react-dom/client';
@@ -122,112 +132,87 @@ const surface = manager.add({
   element,
   mesh: monitorScreen,
 });
+
 const root = createRoot(element);
 root.render(<ControlPanel />);
 surface.invalidate();
 
-// Reactを先に停止する
+// Stop React before disposing the Surface.
 root.unmount();
 surface.dispose();
 ```
 
-リポジトリの統合デモはDashboard／Activity／Settings navigation、状態更新button、input、checkbox、range、scrollを含むReactサイト全体を、移動・回転する3Dモニターへ表示します。
+The live demo mounts a complete React dashboard—with navigation, button state, text input, checkbox, range drag, and scrolling—on a moving and rotating 3D monitor. A second Vanilla Surface demonstrates multi-surface routing and occlusion.
 
-## Backend選択
+## Backends
 
-| 指定 | 挙動 |
+| Option | Behavior |
 |---|---|
-| `auto` | stable優先。native機能があってもpolyfillを選ぶ |
-| `polyfill` | `three-html-render`を明示使用 |
-| `native` | native HTML-in-Canvasが検出できる場合だけ使用。experimental |
+| `auto` | Stable-first. Uses the polyfill path even if a native experimental API is present. |
+| `polyfill` | Uses `three-html-render` explicitly. |
+| `native` | Uses native HTML-in-Canvas only when detected. Experimental and opt-in. |
 
-Backend SPIは`html-surface-three/experimental`へ分離し、安定FacadeからThree.js実験APIを露出しません。詳細は[Texture Backend](docs/backends.md)を参照してください。
+The Backend SPI is isolated behind `html-surface-three/experimental`, keeping experimental Three.js APIs out of the stable facade. See [Texture Backends](https://github.com/solu199/html-surface-three/blob/main/docs/backends.md).
 
-## ブラウザ保証
+## Browser support
 
-段階保証を採用しています。
+Support is intentionally tiered:
 
-- Tier 1: stable Chrome／Edgeで全E2Eシナリオ
-- Tier 2: Playwright Firefox／WebKitで表示、button、input、scrollのsmoke
-- Experimental: native HTML-in-Canvasの検出と明示選択
+| Tier | Browser | Coverage |
+|---|---|---|
+| Tier 1 | stable Chrome and Edge | moving and rotated surfaces, navigation, button, input, keyboard, IME composition, checkbox, range drag, scroll, multiple surfaces, occlusion, pointer capture, touch |
+| Tier 2 | Playwright Firefox and WebKit | startup, rendering, button, input, and scroll smoke tests |
+| Manual | Safari | published checklist; Playwright WebKit is not claimed as Safari |
+| Experimental | native HTML-in-Canvas environments | detection and explicit selection only |
 
-Playwright WebKitはSafariそのものではありません。Safari向け手動checklistを含む詳細は[ブラウザ互換性](docs/browser-support.md)にあります。
+The default Backend is the stable polyfill path. See the complete [browser matrix and Safari checklist](https://github.com/solu199/html-surface-three/blob/main/docs/browser-support.md).
 
-## 現時点の制約
+## Current limitations
 
-- polyfillはSVG `foreignObject`とTexture uploadのコストを持つ
-- CORS画像／動画、iframe、DRM、複雑なCSSやform controlの外観にはブラウザ制約がある
-- UV重複、別UV channel、SkinnedMesh、InstancedMeshはRC1保証外
-- scene全体へのrecursive Raycastは大規模sceneで最適化が必要
-- DOMアクセシビリティツリーと3D上の視覚位置は必ずしも一致しない
-- native HTML-in-Canvas、React Three Fiber Adapter、WebXR入力はまだstable APIではない
+- The polyfill path uses SVG `foreignObject` and texture uploads.
+- Cross-origin media, iframe content, DRM, complex CSS, and native form styling remain browser-constrained.
+- Overlapping UVs, alternate UV channels, `SkinnedMesh`, and `InstancedMesh` are outside the RC1 guarantee.
+- Scene-wide recursive raycasting needs application-specific optimization in very large scenes.
+- The DOM accessibility tree and the visual 3D position are not the same thing.
+- React Three Fiber and WebXR adapters are planned, not stable APIs.
 
-詳細と回避方針は[現時点の制約](docs/limitations.md)を参照してください。
+See [current limitations](https://github.com/solu199/html-surface-three/blob/main/docs/limitations.md) for details and mitigation ideas.
 
-## 既存ライブラリとの違い
+## Documentation
 
-- Canvas UIはライブHTMLのWebGL表現を提供します。本ライブラリは描画処理を低レベル基盤として扱い、任意MeshとのBinding、入力、遮蔽、複数Surface、破棄を一段上で管理します。
-- Three.js `HTMLTexture`と`three-html-render`は描画primitiveです。本ライブラリでは交換可能なBackendとして隔離します。
-- Three.js `HTMLMesh`は簡易rasterizer付きMeshです。本ライブラリは既存Mesh／Materialを対象にし、scene内の通常Meshを遮蔽物として扱います。
-- Drei `Html`やBabylon.js HtmlMeshのようなDOM／CSS overlayではなく、TextureとしてMeshの変形、深度、遮蔽へ参加します。
-- `three-mesh-ui`などの3DネイティブUIと異なり、既存のHTML、CSS、React資産を再利用します。
+- [API reference](https://github.com/solu199/html-surface-three/blob/main/docs/api.md)
+- [Texture Backends](https://github.com/solu199/html-surface-three/blob/main/docs/backends.md)
+- [Browser support](https://github.com/solu199/html-surface-three/blob/main/docs/browser-support.md)
+- [Current limitations](https://github.com/solu199/html-surface-three/blob/main/docs/limitations.md)
+- [Migration from the prototype](https://github.com/solu199/html-surface-three/blob/main/docs/migration-rc1.md)
+- [Related technology research](https://github.com/solu199/html-surface-three/blob/main/docs/research/2026-07-24-html-surface-landscape.md)
+- [Changelog](https://github.com/solu199/html-surface-three/blob/main/CHANGELOG.md)
 
-技術選定の根拠は[関連技術調査](docs/research/2026-07-24-html-surface-landscape.md)を参照してください。
-
-## 今後追加すべき機能
-
-1. 実Safariと複数OS／GPU／IMEの互換性matrix
-2. Surface layer、Raycast対象root、BVHによる大規模scene最適化
-3. React Three Fiber向けの薄いhook／component
-4. WebXR controller／hand ray入力Adapter
-5. 画像／動画TextureとHTML合成Backendの共通Surface管理
-6. UV channel、Geometry group、curved／skinned／instanced Meshの検証
-7. paint頻度、Texture解像度、Surface数のperformance budgetと計測
-8. Backend SPIの実装結果に基づく安定化
-
-## 開発・検証
+## Development
 
 ```bash
+npm install
+npm run dev
+
 npm run typecheck
 npm test
 npm run build
 npm run test:e2e:tier1
 npm run test:e2e:smoke
-npm run test:e2e:evidence
 npm run test:visual
 npm run verify:package
-npm run verify
 ```
 
-- library ESMと型宣言: `dist/`
+- library ESM and declarations: `dist/`
 - production demo: `dist-demo/`
-- E2E成果物: `artifacts/`
-- `test:e2e:evidence`: 主要フローのvideo、trace、最終screenshot、HTML reportを保存
-- `verify:package`: `npm pack`したtarballを一時consumerへinstallし、型とruntime exportを検査
+- browser evidence: `artifacts/`
 
-ローカルtarballを別プロジェクトで試す場合:
+Read [CONTRIBUTING](https://github.com/solu199/html-surface-three/blob/main/.github/CONTRIBUTING.md) before opening a pull request. Report vulnerabilities through the process in [SECURITY](https://github.com/solu199/html-surface-three/blob/main/.github/SECURITY.md).
 
-```bash
-npm run build:lib
-npm pack
-npm install /path/to/html-surface-three-0.1.0-rc.1.tgz three@0.185.1
-```
+## Non-goals
 
-## 文書
-
-- [RC1設計](docs/superpowers/specs/2026-07-24-html-surface-three-rc1-design.md)
-- [APIリファレンス](docs/api.md)
-- [Texture Backend](docs/backends.md)
-- [ブラウザ互換性](docs/browser-support.md)
-- [現時点の制約](docs/limitations.md)
-- [プロトタイプからの移行](docs/migration-rc1.md)
-- [関連技術調査](docs/research/2026-07-24-html-surface-landscape.md)
-- [変更履歴](CHANGELOG.md)
-
-## 非目標
-
-HTMLラスタライザー、UIコンポーネント集、DOMオーバーレイ、React専用ライブラリ、画像／動画decoder、メディアプレイヤーではありません。
+This project is not an HTML rasterizer, UI component kit, DOM overlay, React-only library, image/video decoder, or media player.
 
 ## License
 
-[MIT](LICENSE)
+[MIT](https://github.com/solu199/html-surface-three/blob/main/LICENSE)
