@@ -40,6 +40,7 @@ const animationButton = requireElement<HTMLButtonElement>(
 const occlusionButton = requireElement<HTMLButtonElement>(
   '#toggle-occlusion',
 );
+const e2eMode = new URLSearchParams(location.search).has('e2e');
 
 let renderer: WebGLRenderer;
 try {
@@ -47,6 +48,7 @@ try {
     canvas,
     antialias: true,
     powerPreference: 'high-performance',
+    preserveDrawingBuffer: e2eMode,
   });
 } catch (error) {
   const message = error instanceof Error ? error.message : String(error);
@@ -171,7 +173,6 @@ controls.target.set(0.55, 0.18, 0);
 const reducedMotion = window.matchMedia(
   '(prefers-reduced-motion: reduce)',
 ).matches;
-const e2eMode = new URLSearchParams(location.search).has('e2e');
 let animationPaused = reducedMotion || e2eMode;
 let fixedAnimationTime = 0;
 let currentAnimationTime = 0;
