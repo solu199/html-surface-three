@@ -4,9 +4,23 @@ import {
   SRGBColorSpace,
   type Texture,
 } from 'three';
-import { installHtmlInCanvasPolyfill } from 'three-html-render/polyfill';
 import { HtmlSurfaceError } from '../core/errors';
 import { adaptLegacyHtmlTextureUpload } from './polyfill-compat';
+
+type PolyfillModule = typeof import('three-html-render/polyfill');
+
+let installHtmlInCanvasPolyfill:
+  | PolyfillModule['installHtmlInCanvasPolyfill']
+  | undefined;
+
+if (
+  typeof window !== 'undefined'
+  && typeof Element !== 'undefined'
+) {
+  ({ installHtmlInCanvasPolyfill } = await import(
+    'three-html-render/polyfill'
+  ));
+}
 
 export type BackendKind = 'native' | 'polyfill';
 export type BackendPreference = 'auto' | BackendKind;
@@ -81,6 +95,12 @@ export function createHtmlTextureBackend(
   canvas.setAttribute('layoutsubtree', '');
 
   if (kind === 'polyfill') {
+    if (!installHtmlInCanvasPolyfill) {
+      throw new HtmlSurfaceError(
+        'backend-unavailable',
+        'polyfill BackendはDOM環境でのみ初期化できます。',
+      );
+    }
     installHtmlInCanvasPolyfill();
     const contextTypes = [
       globalThis.WebGLRenderingContext,
