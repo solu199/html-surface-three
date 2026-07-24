@@ -11,6 +11,7 @@ import {
   PerspectiveCamera,
   PlaneGeometry,
   Scene,
+  Vector3,
   WebGLRenderer,
 } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -19,6 +20,7 @@ import {
   HtmlSurfaceManager,
   type HtmlSurfaceDebugState,
 } from '../index';
+import { projectDomTarget } from './demo-test-api';
 import { MonitorSite } from './MonitorSite';
 import './styles.css';
 
@@ -29,6 +31,15 @@ const hudBackend = requireElement<HTMLElement>('#hud-backend');
 const hudHit = requireElement<HTMLElement>('#hud-hit');
 const hudUv = requireElement<HTMLElement>('#hud-uv');
 const hudDom = requireElement<HTMLElement>('#hud-dom');
+const hudCapability = requireElement<HTMLElement>('#hud-capability');
+const hudFocus = requireElement<HTMLElement>('#hud-focus');
+const hudCapture = requireElement<HTMLElement>('#hud-capture');
+const animationButton = requireElement<HTMLButtonElement>(
+  '#toggle-animation',
+);
+const occlusionButton = requireElement<HTMLButtonElement>(
+  '#toggle-occlusion',
+);
 
 let renderer: WebGLRenderer;
 try {
@@ -58,6 +69,7 @@ const monitor = createMonitor();
 monitor.group.position.set(0.25, 0.35, 0);
 monitor.group.rotation.y = -0.08;
 scene.add(monitor.group);
+const monitorOrigin = monitor.group.position.clone();
 
 const secondary = createSecondaryPanel();
 secondary.group.position.set(3.15, 0.1, -0.55);
@@ -128,6 +140,7 @@ const vanillaSurface = manager.add({
 });
 
 let blockerPaused = false;
+let occluded = false;
 const blockerButton = vanillaElement.querySelector<HTMLButtonElement>(
   '[data-testid="vanilla-action"]',
 );
@@ -142,6 +155,10 @@ blockerButton?.addEventListener('click', () => {
 });
 
 hudBackend.textContent = manager.backendKind;
+const capabilityReport = manager.getCapabilityReport();
+hudCapability.textContent = capabilityReport.warnings.length === 0
+  ? 'ready'
+  : `${capabilityReport.warnings.length} warning`;
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
@@ -154,8 +171,119 @@ controls.target.set(0.55, 0.18, 0);
 const reducedMotion = window.matchMedia(
   '(prefers-reduced-motion: reduce)',
 ).matches;
-if (reducedMotion) {
-  blockerPaused = true;
+const e2eMode = new URLSearchParams(location.search).has('e2e');
+let animationPaused = reducedMotion || e2eMode;
+let fixedAnimationTime = 0;
+let currentAnimationTime = 0;
+if (reducedMotion) blockerPaused = true;
+
+let resolveReady!: () => void;
+const ready = new Promise<void>((resolve) => {
+  resolveReady = resolve;
+});
+
+function applyMonitorMotion(seconds: number) {
+  monitor.group.position.set(
+    monitorOrigin.x + Math.sin(seconds * 0.43) * 0.42,
+    monitorOrigin.y + Math.sin(seconds * 0.67) * 0.18,
+    monitorOrigin.z + Math.cos(seconds * 0.31) * 0.12,
+  );
+  monitor.group.rotation.set(
+    Math.sin(seconds * 0.37) * 0.035,
+    -0.08 + Math.sin(seconds * 0.29) * 0.12,
+    Math.sin(seconds * 0.23) * 0.025,
+  );
+  monitor.group.updateMatrixWorld(true);
+}
+
+function placeOccluder(value: boolean) {
+  occluded = value;
+  if (!value) {
+    blocker.scale.setScalar(1);
+    blocker.position.set(4.6, 2.4, 1.4);
+    blocker.updateMatrixWorld(true);
+    return;
+  }
+
+  const center = monitor.screen.getWorldPosition(new Vector3());
+  blocker.position.copy(center).lerp(camera.position, 0.18);
+  blocker.scale.set(5.8, 4.2, 0.35);
+  blocker.rotation.set(0, 0, 0);
+  blocker.updateMatrixWorld(true);
+}
+
+function syncAnimationButton() {
+  animationButton.textContent = animationPaused
+    ? 'Resume motion'
+    : 'Pause motion';
+}
+
+function toggleAnimation() {
+  const nextPaused = !animationPaused;
+  if (nextPaused) fixedAnimationTime = currentAnimationTime;
+  animationPaused = nextPaused;
+  syncAnimationButton();
+}
+
+function toggleOcclusion() {
+  placeOccluder(!occluded);
+  occlusionButton.textContent = occluded
+    ? 'Hide occlusion'
+    : 'Show occlusion';
+}
+
+animationButton.addEventListener('click', toggleAnimation);
+occlusionButton.addEventListener('click', toggleOcclusion);
+syncAnimationButton();
+
+if (e2eMode) {
+  window.__HTML_SURFACE_DEMO__ = {
+    ready,
+    setAnimationTime(seconds) {
+      fixedAnimationTime = seconds;
+      applyMonitorMotion(seconds);
+      if (occluded) placeOccluder(true);
+    },
+    setAnimationPaused(paused) {
+      if (paused && !animationPaused) {
+        fixedAnimationTime = currentAnimationTime;
+      }
+      animationPaused = paused;
+      syncAnimationButton();
+    },
+    setOccluded(value) {
+      placeOccluder(value);
+      occlusionButton.textContent = occluded
+        ? 'Hide occlusion'
+        : 'Show occlusion';
+    },
+    pointFor(testId, xRatio, yRatio) {
+      const reactTarget = reactElement.querySelector(
+        `[data-testid="${testId}"]`,
+      );
+      const descriptor = reactTarget
+        ? { root: reactElement, screen: monitor.screen }
+        : { root: vanillaElement, screen: secondary.screen };
+      return projectDomTarget({
+        root: descriptor.root,
+        testId,
+        screen: descriptor.screen,
+        camera,
+        renderer,
+        xRatio,
+        yRatio,
+      });
+    },
+    getState() {
+      return {
+        animationTime: fixedAnimationTime,
+        paused: animationPaused,
+        occluded,
+        capabilities: manager.getCapabilityReport(),
+        debug: manager.getDebugState(),
+      };
+    },
+  };
 }
 
 let firstFrame = true;
@@ -164,10 +292,19 @@ const startTime = performance.now();
 
 function render(time: number) {
   const elapsed = (time - startTime) / 1000;
-  if (!blockerPaused) {
+  const animationTime = animationPaused
+    ? fixedAnimationTime
+    : elapsed;
+  currentAnimationTime = animationTime;
+  applyMonitorMotion(animationTime);
+  if (!occluded && !blockerPaused) {
     blocker.position.x = 0.25 + Math.sin(elapsed * 0.62) * 1.62;
+    blocker.position.y = 0.72;
+    blocker.position.z = 0.82;
+    blocker.scale.setScalar(1);
     blocker.rotation.x = elapsed * 0.17;
     blocker.rotation.y = elapsed * 0.23;
+    blocker.updateMatrixWorld(true);
   }
 
   controls.update();
@@ -178,6 +315,7 @@ function render(time: number) {
   if (firstFrame) {
     firstFrame = false;
     loading.remove();
+    resolveReady();
   }
 
   animationFrame = requestAnimationFrame(render);
@@ -212,11 +350,14 @@ window.addEventListener('beforeunload', () => {
   cancelAnimationFrame(animationFrame);
   window.removeEventListener('resize', resize);
   controls.dispose();
+  animationButton.removeEventListener('click', toggleAnimation);
+  occlusionButton.removeEventListener('click', toggleOcclusion);
   reactRoot.unmount();
   reactSurface.dispose();
   vanillaSurface.dispose();
   manager.dispose();
   renderer.dispose();
+  delete window.__HTML_SURFACE_DEMO__;
 });
 
 function createMonitor() {
@@ -327,6 +468,10 @@ function updateHud(state: HtmlSurfaceDebugState) {
   hudDom.textContent = state.domPoint
     ? `${Math.round(state.domPoint.x)}, ${Math.round(state.domPoint.y)}`
     : '—';
+  hudFocus.textContent = state.focusTarget ?? '—';
+  hudCapture.textContent = state.capturedPointerId === undefined
+    ? '—'
+    : String(state.capturedPointerId);
 }
 
 function requireElement<ElementType extends Element>(

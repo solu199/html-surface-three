@@ -70,11 +70,11 @@ input {
 
 #hud dl {
   display: grid;
-  gap: 22px;
+  gap: 12px;
 }
 
 #hud dl > div {
-  padding-bottom: 18px;
+  padding-bottom: 10px;
   border-bottom: 1px solid rgba(123, 158, 163, 0.34);
 }
 
@@ -93,6 +93,27 @@ input {
   line-height: 1.45;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.hud-actions {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+  pointer-events: auto;
+}
+
+.hud-actions button {
+  min-height: 32px;
+  border: 1px solid rgba(101, 230, 212, 0.52);
+  border-radius: 6px;
+  background: rgba(101, 230, 212, 0.08);
+  color: #b7fff5;
+  cursor: pointer;
+  font-size: 10px;
+}
+
+.hud-actions button:hover {
+  background: rgba(101, 230, 212, 0.16);
 }
 
 .hud-help {
