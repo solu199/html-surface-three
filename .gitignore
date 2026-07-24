@@ -4,3 +4,6 @@ dist/
 dist-demo/
 coverage/
 *.log
+artifacts/
+playwright-report/
+test-results/

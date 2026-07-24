@@ -3,6 +3,7 @@ import type { UvPoint } from './coordinates';
 export type HitCandidate<ObjectType> = {
   distance: number;
   object: ObjectType;
+  materialIndex?: number;
   uv?: UvPoint;
 };
 
@@ -23,7 +24,10 @@ export type FrontmostHit<ObjectType, SurfaceType> =
 
 export function resolveFrontmostHit<ObjectType, SurfaceType>(
   hits: readonly HitCandidate<ObjectType>[],
-  resolveSurface: (object: ObjectType) => SurfaceType | undefined,
+  resolveSurface: (
+    object: ObjectType,
+    materialIndex: number | undefined,
+  ) => SurfaceType | undefined,
   shouldIgnore: (object: ObjectType) => boolean,
 ): FrontmostHit<ObjectType, SurfaceType> {
   const sortedHits = [...hits].sort((a, b) => a.distance - b.distance);
@@ -33,7 +37,7 @@ export function resolveFrontmostHit<ObjectType, SurfaceType>(
       continue;
     }
 
-    const surface = resolveSurface(hit.object);
+    const surface = resolveSurface(hit.object, hit.materialIndex);
     if (surface && hit.uv) {
       return {
         kind: 'surface',

@@ -7,10 +7,8 @@ export {
 } from './HtmlSurfaceManager';
 
 export {
-  createHtmlTextureBackend,
   type BackendKind,
-  type HtmlTextureBackend,
-  type HtmlTextureHandle,
+  type BackendPreference,
 } from './backends/html-texture-backend';
 
 export {
@@ -21,3 +19,14 @@ export {
   type UvPoint,
   type UvTransform,
 } from './core/coordinates';
+
+export {
+  HtmlSurfaceError,
+  type HtmlSurfaceErrorCode,
+} from './core/errors';
+
+export {
+  type CapabilityReport,
+  type CapabilityWarning,
+  type CapabilityWarningCode,
+} from './core/capabilities';

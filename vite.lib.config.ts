@@ -4,9 +4,19 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   build: {
     lib: {
-      entry: resolve(import.meta.dirname, 'src/index.ts'),
+      entry: {
+        index: resolve(import.meta.dirname, 'src/index.ts'),
+        experimental: resolve(
+          import.meta.dirname,
+          'src/experimental.ts',
+        ),
+      },
       formats: ['es'],
-      fileName: 'html-surface-three',
+      fileName: (_format, entryName) => (
+        entryName === 'index'
+          ? 'html-surface-three.js'
+          : `${entryName}.js`
+      ),
     },
     outDir: 'dist',
     emptyOutDir: true,
