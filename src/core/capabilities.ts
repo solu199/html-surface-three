@@ -1,5 +1,7 @@
-export type BackendPreference = 'auto' | 'polyfill' | 'native';
-export type ActiveBackendKind = 'polyfill' | 'native';
+import type {
+  BackendKind,
+  BackendPreference,
+} from '../backends/html-texture-backend';
 
 export type CapabilityWarningCode =
   | 'native-backend-unavailable'
@@ -15,7 +17,7 @@ export type CapabilityWarning = {
 export type CapabilityReport = {
   backend: {
     requested: BackendPreference;
-    active: ActiveBackendKind;
+    active: BackendKind;
     nativeAvailable: boolean;
   };
   input: {
@@ -35,7 +37,7 @@ export type CapabilityReport = {
 
 export type CapabilityReportInput = {
   requested: BackendPreference;
-  active: ActiveBackendKind;
+  active: BackendKind;
   nativeAvailable: boolean;
   pointerEvents: boolean;
   pointerCapture: boolean;

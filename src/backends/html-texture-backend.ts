@@ -5,18 +5,22 @@ import {
   type Texture,
 } from 'three';
 import { installHtmlInCanvasPolyfill } from 'three-html-render/polyfill';
+import { HtmlSurfaceError } from '../core/errors';
 import { adaptLegacyHtmlTextureUpload } from './polyfill-compat';
 
 export type BackendKind = 'native' | 'polyfill';
+export type BackendPreference = 'auto' | BackendKind;
 
 export type HtmlTextureHandle = {
   readonly texture: Texture;
+  readonly ready: Promise<void>;
   invalidate(): void;
   dispose(): void;
 };
 
 export type HtmlTextureBackend = {
   readonly kind: BackendKind;
+  readonly nativeAvailable: boolean;
   mount(element: HTMLElement): HtmlTextureHandle;
   requestPaint(): void;
 };
@@ -25,7 +29,10 @@ type HtmlCanvasElement = HTMLCanvasElement & {
   requestPaint?: () => void;
 };
 
-function hasNativeHtmlTextureUpload(canvas: HtmlCanvasElement): boolean {
+export function detectNativeHtmlInCanvas(
+  sourceCanvas: HTMLCanvasElement,
+): boolean {
+  const canvas = sourceCanvas as HtmlCanvasElement;
   if (typeof canvas.requestPaint !== 'function') {
     return false;
   }
@@ -41,13 +48,35 @@ function hasNativeHtmlTextureUpload(canvas: HtmlCanvasElement): boolean {
   ));
 }
 
+export function selectBackendKind(
+  requested: BackendPreference,
+  nativeAvailable: boolean,
+): BackendKind {
+  if (requested === 'auto' || requested === 'polyfill') {
+    return 'polyfill';
+  }
+  if (nativeAvailable) {
+    return 'native';
+  }
+
+  throw new HtmlSurfaceError(
+    'backend-unavailable',
+    'native HTML-in-Canvas Backendを利用できません。',
+  );
+}
+
 export function createHtmlTextureBackend(
-  sourceCanvas: HTMLCanvasElement,
+  options: {
+    sourceCanvas: HTMLCanvasElement;
+    preference?: BackendPreference;
+  },
 ): HtmlTextureBackend {
-  const canvas = sourceCanvas as HtmlCanvasElement;
-  const kind: BackendKind = hasNativeHtmlTextureUpload(canvas)
-    ? 'native'
-    : 'polyfill';
+  const canvas = options.sourceCanvas as HtmlCanvasElement;
+  const nativeAvailable = detectNativeHtmlInCanvas(canvas);
+  const kind = selectBackendKind(
+    options.preference ?? 'auto',
+    nativeAvailable,
+  );
 
   canvas.setAttribute('layoutsubtree', '');
 
@@ -79,6 +108,7 @@ export function createHtmlTextureBackend(
 
   return {
     kind,
+    nativeAvailable,
     requestPaint,
     mount(element) {
       const texture = new HTMLTexture(element);
@@ -105,7 +135,12 @@ export function createHtmlTextureBackend(
         subtree: true,
       });
 
-      const invalidateEvents = ['input', 'change', 'scroll'] as const;
+      const invalidateEvents = [
+        'input',
+        'change',
+        'scroll',
+        'compositionend',
+      ] as const;
       for (const eventName of invalidateEvents) {
         element.addEventListener(eventName, invalidate, true);
       }
@@ -114,6 +149,7 @@ export function createHtmlTextureBackend(
 
       return {
         texture,
+        ready: Promise.resolve(),
         invalidate,
         dispose() {
           if (disposed) {
@@ -126,7 +162,6 @@ export function createHtmlTextureBackend(
             element.removeEventListener(eventName, invalidate, true);
           }
           texture.dispose();
-          element.remove();
         },
       };
     },

@@ -115,7 +115,9 @@ export class HtmlSurfaceManager {
     this.camera = options.camera;
     this.scene = options.scene;
     this.backend = options.backend
-      ?? createHtmlTextureBackend(options.renderer.domElement);
+      ?? createHtmlTextureBackend({
+        sourceCanvas: options.renderer.domElement,
+      });
     this.backendKind = this.backend.kind;
     this.onDebugChange = options.onDebugChange;
 

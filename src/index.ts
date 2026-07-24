@@ -7,10 +7,8 @@ export {
 } from './HtmlSurfaceManager';
 
 export {
-  createHtmlTextureBackend,
   type BackendKind,
-  type HtmlTextureBackend,
-  type HtmlTextureHandle,
+  type BackendPreference,
 } from './backends/html-texture-backend';
 
 export {
