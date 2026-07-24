@@ -84,4 +84,24 @@ describe('resolveFrontmostHit', () => {
 
     expect(result.kind).toBe('blocked');
   });
+
+  it('交差面のMaterialスロットをSurface解決へ渡す', () => {
+    const slots: Array<number | undefined> = [];
+
+    resolveFrontmostHit(
+      [{
+        distance: 1,
+        object: panel,
+        materialIndex: 2,
+        uv: { x: 0.5, y: 0.5 },
+      }],
+      (object, materialIndex) => {
+        slots.push(materialIndex);
+        return object === panel ? surface : undefined;
+      },
+      shouldIgnore,
+    );
+
+    expect(slots).toEqual([2]);
+  });
 });
