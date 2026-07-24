@@ -1,5 +1,14 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const ciChromiumLaunchOptions = process.env.CI
+  ? {
+    args: [
+      '--use-gl=angle',
+      '--use-angle=swiftshader',
+    ],
+  }
+  : undefined;
+
 export default defineConfig({
   testDir: './tests/e2e',
   outputDir: 'artifacts/playwright',
@@ -38,6 +47,7 @@ export default defineConfig({
       use: {
         ...devices['Desktop Chrome'],
         channel: 'chrome',
+        launchOptions: ciChromiumLaunchOptions,
       },
     },
     {
@@ -46,6 +56,7 @@ export default defineConfig({
       use: {
         ...devices['Desktop Chrome'],
         channel: 'msedge',
+        launchOptions: ciChromiumLaunchOptions,
       },
     },
     {
