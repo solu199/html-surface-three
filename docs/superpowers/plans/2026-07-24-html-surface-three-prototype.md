@@ -177,7 +177,7 @@ Expected: 全テストPASS、TypeScript error 0。
 - Consumes: `UvPoint`, `uvToDomPoint`, `copyAndTransformUv`
 - Produces: `resolveFrontmostHit()`, `createHtmlTextureBackend()`, `HtmlSurfaceManager`, `HtmlSurface`, `HtmlSurfaceOptions`, `HtmlSurfaceDebugState`
 
-- [ ] **Step 1: 遮蔽判定の失敗テストを書く**
+- [x] **Step 1: 遮蔽判定の失敗テストを書く**
 
 ```ts
 import { describe, expect, it } from 'vitest';
@@ -227,11 +227,11 @@ describe('resolveFrontmostHit', () => {
 });
 ```
 
-- [ ] **Step 2: 最前面判定を実装する**
+- [x] **Step 2: 最前面判定を実装する**
 
 `resolveFrontmostHit`はdistance昇順の交差を走査し、ignore対象を飛ばす。最初の有効交差がSurfaceでUVを持てば`surface`、Surfaceでなければ`blocked`、有効交差がなければ`none`を返す。SurfaceにUVがない場合は誤入力を防ぐため`blocked`にする。
 
-- [ ] **Step 3: backend境界を実装する**
+- [x] **Step 3: backend境界を実装する**
 
 `HtmlTextureBackend`は次の契約にする。
 
@@ -253,7 +253,7 @@ export type HtmlTextureBackend = {
 
 `createHtmlTextureBackend(canvas)`はpolyfill導入前に`requestPaint`とWebGLの`texElementImage2D`を検出して`kind`を決める。未対応時だけ`installHtmlInCanvasPolyfill()`を呼び、Canvasへ`layoutsubtree`属性を追加する。`mount()`はHTMLElementをCanvasの子へ追加し、`three-html-render/html-texture`の`HTMLTexture`を生成する。disposeはTextureとDOMを一度だけ解放する。
 
-- [ ] **Step 4: `HtmlSurfaceManager`の縦切りを実装する**
+- [x] **Step 4: `HtmlSurfaceManager`の縦切りを実装する**
 
 公開する最小オプションは次とする。
 
@@ -286,7 +286,7 @@ DOM座標は`texture.transformUv()`または`transformUv`を適用した後、`u
 
 `dispose()`はイベントリスナーを外し、全Surfaceをdisposeする。Surface disposeはMaterial mapを元に戻し、指定された所有物だけを破棄する。
 
-- [ ] **Step 5: coreテスト、typecheck、library buildを通す**
+- [x] **Step 5: coreテスト、typecheck、library buildを通す**
 
 Run: `npm test && npm run typecheck && npm run build:lib`
 
