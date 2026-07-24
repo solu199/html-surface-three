@@ -1,0 +1,59 @@
+name: Feature request
+description: Propose a focused addition to HTML Surface management.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Use case
+      description: Describe the 3D UI problem and why existing APIs are insufficient.
+    validations:
+      required: true
+  - type: dropdown
+    id: responsibility
+    attributes:
+      label: HTML Surface responsibility
+      description: Which boundary should own this feature?
+      options:
+        - Mesh / material binding
+        - UV to DOM coordinate mapping
+        - Occlusion-aware input routing
+        - Multiple-surface management
+        - Lifecycle and ownership
+        - Replaceable rendering Backend
+        - React Three Fiber adapter
+        - WebXR input adapter
+        - Documentation or tooling
+        - Unsure
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Explain the smallest useful behavior without fixing the public API too early.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Include direct Three.js textures, overlays, 3D-native UI, or application-level handling when relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: compatibility
+    attributes:
+      label: Browser and ecosystem impact
+      description: Note stable browser, React Three Fiber, WebXR, performance, or Backend implications.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched existing issues and proposals.
+          required: true
+        - label: This request is not for a UI component library or DOM overlay.
+          required: true

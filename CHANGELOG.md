@@ -2,7 +2,9 @@
 
 ## 0.1.0-rc.1
 
-最初のリリース候補です。npmレジストリにはまだ公開していません。
+公開日: 2026-07-24
+
+最初の公開リリース候補です。npmでは`next` dist-tagから導入できます。
 
 ### 追加
 
@@ -17,6 +19,8 @@
 - 動く3Dモニター上のReactサイトとVanilla診断Surface
 - Unit／Integration、Chrome／Edge E2E、Firefox／WebKit smoke、視覚回帰テスト
 - ESM package、型宣言、tarball consumer検証、GitHub Actions
+- 英語／日本語README、GitHub Pagesライブデモ、公開コントリビューション導線
+- npm Trusted Publishingとprovenance対応の公開workflow
 
 ### 互換性
 
@@ -30,4 +34,4 @@
 - native HTML-in-Canvas経路は実験扱いです。
 - polyfill経路はSVG `foreignObject`による描画とTexture uploadのコストを持ちます。
 - iframe、DRM、クロスオリジンメディアを完全にTexture化する機能はありません。
-- npmレジストリへの公開、GitHub Release、version tagはこのRCに含めていません。
+- React Three Fiber AdapterとWebXR入力は将来機能です。

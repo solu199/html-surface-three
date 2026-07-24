@@ -9,6 +9,8 @@ import {
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
+import { assertPublicPackage } from './package-contents.mjs';
+
 const root = resolve(import.meta.dirname, '..');
 const temporary = await mkdtemp(join(tmpdir(), 'html-surface-three-'));
 const packDirectory = join(temporary, 'pack');
@@ -60,25 +62,13 @@ try {
     throw new Error('npm pack filename was not returned.');
   }
 
-  const expected = new Set([
-    'dist/html-surface-three.js',
-    'dist/experimental.js',
-    'dist/index.d.ts',
-    'dist/experimental.d.ts',
-    'README.md',
-    'LICENSE',
-    'CHANGELOG.md',
-    'package.json',
-  ]);
-  const files = new Set(packed.files.map((file) => file.path));
-  for (const file of expected) {
-    if (!files.has(file)) {
-      throw new Error(`Missing packed file: ${file}`);
-    }
-  }
-  if ([...files].some((file) => file.startsWith('src/'))) {
-    throw new Error('Package must not include src/.');
-  }
+  const sourceManifest = JSON.parse(
+    await readFile(join(root, 'package.json'), 'utf8'),
+  );
+  assertPublicPackage({
+    files: packed.files.map((file) => file.path),
+    manifest: sourceManifest,
+  });
 
   const tarball = join(packDirectory, packed.filename);
   await writeFile(

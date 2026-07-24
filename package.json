@@ -3,7 +3,7 @@
   "version": "0.1.0-rc.1",
   "private": false,
   "type": "module",
-  "description": "HTMLElementを操作可能なThree.js Mesh表面として管理するHTML Surfaceライブラリ",
+  "description": "Manage interactive HTML UI as Three.js mesh surfaces with texture rendering, UV mapping, occlusion-aware input, and lifecycle control.",
   "license": "MIT",
   "author": "HTML Surface Three contributors",
   "repository": {
@@ -13,14 +13,16 @@
   "bugs": {
     "url": "https://github.com/solu199/html-surface-three/issues"
   },
-  "homepage": "https://github.com/solu199/html-surface-three#readme",
+  "homepage": "https://solu199.github.io/html-surface-three/",
   "keywords": [
     "three.js",
     "html",
     "texture",
     "webgl",
     "interaction",
-    "react"
+    "react",
+    "canvas",
+    "3d-ui"
   ],
   "main": "./dist/html-surface-three.js",
   "module": "./dist/html-surface-three.js",
@@ -56,13 +58,18 @@
     "test:visual": "playwright test tests/e2e/visual.spec.ts --project=chrome",
     "build:lib": "vite build --config vite.lib.config.ts && tsc -p tsconfig.lib.json",
     "build:demo": "vite build",
+    "build:pages": "vite build --base=/html-surface-three/",
     "build": "npm run build:lib && npm run build:demo",
+    "release:info": "node scripts/release-info.mjs",
     "verify:package": "npm run build:lib && node scripts/verify-package.mjs",
     "verify": "npm run typecheck && npm test && npm run build && npm run verify:package",
     "preview": "vite preview"
   },
   "peerDependencies": {
     "three": ">=0.184.0 <0.186.0"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "dependencies": {
     "three-html-render": "^0.1.2"

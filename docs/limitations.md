@@ -35,4 +35,4 @@
 - `html-surface-three/experimental`のBackend SPIはsemver互換性保証外です。
 - native HTML-in-Canvasは実験扱いで、stable Tierには含みません。
 - React Three FiberとWebXR向けの統合層は将来機能です。Vanilla coreからは利用できますが専用Adapterはありません。
-- `0.1.0-rc.1`はnpmレジストリ未公開です。
+- `0.1.0-rc.1`はnpmの`next` dist-tagで公開します。正式版の`latest`保証ではありません。
