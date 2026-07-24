@@ -1,0 +1,60 @@
+name: Publish package to npm
+
+on:
+  push:
+    tags:
+      - v*
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: npm-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - name: Use a trusted-publishing compatible npm
+        run: npm install --global npm@11.17.0
+      - run: npm ci
+      - name: Validate release tag
+        id: release
+        run: node scripts/release-info.mjs
+      - run: npm run verify
+      - name: Check whether the version already exists
+        id: registry
+        env:
+          PACKAGE_SPEC: ${{ steps.release.outputs.package_spec }}
+        run: |
+          set +e
+          output="$(npm view "$PACKAGE_SPEC" version --json 2>&1)"
+          status=$?
+          set -e
+          if [ "$status" -eq 0 ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          elif printf '%s' "$output" | grep -q "E404"; then
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          else
+            printf '%s\n' "$output" >&2
+            exit "$status"
+          fi
+      - name: Publish
+        if: steps.registry.outputs.exists != 'true'
+        env:
+          DIST_TAG: ${{ steps.release.outputs.tag }}
+        run: npm publish --provenance --access public --tag "$DIST_TAG"
+      - name: Report existing version
+        if: steps.registry.outputs.exists == 'true'
+        env:
+          PACKAGE_SPEC: ${{ steps.release.outputs.package_spec }}
+        run: echo "::notice::$PACKAGE_SPEC is already published; skipping."
