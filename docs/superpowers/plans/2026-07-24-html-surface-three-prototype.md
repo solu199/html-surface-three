@@ -56,7 +56,7 @@
 **Interfaces:**
 - Produces: `UvPoint`, `DomPoint`, `DomSize`, `uvToDomPoint(uv, size)`, `copyAndTransformUv(uv, transform?)`
 
-- [ ] **Step 1: packageとbuild設定を作る**
+- [x] **Step 1: packageとbuild設定を作る**
 
 `package.json`のscriptsを次に固定する。
 
@@ -109,7 +109,7 @@
 
 Vite library buildは`src/index.ts`をentryとし、`three`と`three-html-render`で始まるimportをexternalにする。demo buildは`dist-demo`へ出力し、libraryの`dist`を上書きしない。
 
-- [ ] **Step 2: UV変換の失敗テストを書く**
+- [x] **Step 2: UV変換の失敗テストを書く**
 
 ```ts
 import { describe, expect, it } from 'vitest';
@@ -133,13 +133,13 @@ describe('uvToDomPoint', () => {
 });
 ```
 
-- [ ] **Step 3: テストがexport未定義で失敗することを確認する**
+- [x] **Step 3: テストがexport未定義で失敗することを確認する**
 
 Run: `npm install && npm test -- tests/coordinates.test.ts`
 
 Expected: `coordinates` moduleまたはexportが存在しないためFAIL。
 
-- [ ] **Step 4: 最小実装を追加する**
+- [x] **Step 4: 最小実装を追加する**
 
 ```ts
 export type UvPoint = { x: number; y: number };
@@ -158,7 +158,7 @@ export function uvToDomPoint(uv: UvPoint, size: DomSize): DomPoint {
 }
 ```
 
-- [ ] **Step 5: 座標テストとtypecheckを通す**
+- [x] **Step 5: 座標テストとtypecheckを通す**
 
 Run: `npm test -- tests/coordinates.test.ts && npm run typecheck`
 
