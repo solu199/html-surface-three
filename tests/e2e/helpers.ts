@@ -48,6 +48,9 @@ export async function dragSurfaceTarget(
   const from = await pointFor(page, testId, fromRatio, 0.5);
   const to = await pointFor(page, testId, toRatio, 0.5);
   await page.mouse.move(from.x, from.y);
+  await page.evaluate(() => new Promise<void>((resolve) => {
+    requestAnimationFrame(() => resolve());
+  }));
   await page.mouse.down();
   await page.mouse.move(to.x, to.y, { steps: 8 });
   await page.mouse.up();

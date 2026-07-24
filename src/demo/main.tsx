@@ -218,6 +218,10 @@ function syncAnimationButton() {
     : 'Pause motion';
 }
 
+if (e2eMode) {
+  placeOccluder(false);
+}
+
 function toggleAnimation() {
   const nextPaused = !animationPaused;
   if (nextPaused) fixedAnimationTime = currentAnimationTime;
@@ -297,7 +301,7 @@ function render(time: number) {
     : elapsed;
   currentAnimationTime = animationTime;
   applyMonitorMotion(animationTime);
-  if (!occluded && !blockerPaused) {
+  if (!e2eMode && !occluded && !blockerPaused) {
     blocker.position.x = 0.25 + Math.sin(elapsed * 0.62) * 1.62;
     blocker.position.y = 0.72;
     blocker.position.z = 0.82;
