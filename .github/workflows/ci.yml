@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run verify
+
+  tier1:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install chrome msedge
+      - run: npm run test:e2e:tier1
+      - run: npm run test:visual
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-tier1
+          path: artifacts/
+          if-no-files-found: ignore
+
+  tier2:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps firefox webkit
+      - run: npm run test:e2e:smoke
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-tier2
+          path: artifacts/
+          if-no-files-found: ignore
