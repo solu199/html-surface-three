@@ -55,7 +55,9 @@
     "test:visual": "playwright test tests/e2e/visual.spec.ts --project=chrome",
     "build:lib": "vite build --config vite.lib.config.ts && tsc -p tsconfig.lib.json",
     "build:demo": "vite build",
-    "build": "npm run typecheck && npm run test && npm run build:lib && npm run build:demo",
+    "build": "npm run build:lib && npm run build:demo",
+    "verify:package": "npm run build:lib && node scripts/verify-package.mjs",
+    "verify": "npm run typecheck && npm test && npm run build && npm run verify:package",
     "preview": "vite preview"
   },
   "peerDependencies": {
