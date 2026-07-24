@@ -150,3 +150,41 @@ test('hoverなしのtouch pointerでbuttonを操作できる', async ({ page }) 
 
   await expect(page.getByTestId('action-count')).toHaveText('1');
 });
+
+test('polyfill hostへ複製されたcanvas click listenerがrouted activationを抑止しない', async ({
+  page,
+}) => {
+  await page.evaluate(() => {
+    const canvas = document.querySelector<HTMLCanvasElement>('#scene')!;
+    canvas.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    }, true);
+  });
+
+  const point = await pointFor(page, 'react-action');
+  await page.dispatchEvent('#scene', 'pointerdown', {
+    pointerId: 23,
+    pointerType: 'touch',
+    isPrimary: true,
+    clientX: point.x,
+    clientY: point.y,
+    button: 0,
+    buttons: 1,
+    bubbles: true,
+    cancelable: true,
+  });
+  await page.dispatchEvent('#scene', 'pointerup', {
+    pointerId: 23,
+    pointerType: 'touch',
+    isPrimary: true,
+    clientX: point.x,
+    clientY: point.y,
+    button: 0,
+    buttons: 0,
+    bubbles: true,
+    cancelable: true,
+  });
+
+  await expect(page.getByTestId('action-count')).toHaveText('1');
+});

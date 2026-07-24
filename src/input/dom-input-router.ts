@@ -5,6 +5,7 @@ import {
   isSyntheticPointerEvent,
   resolveDomTarget,
 } from './dom-target';
+import { installCanvasActivationGuard } from './dom-activation';
 import {
   PointerSessionStore,
   type PointerSession,
@@ -72,6 +73,7 @@ export class DomInputRouter {
   private disposed = false;
 
   constructor(private readonly options: DomInputRouterOptions) {
+    installCanvasActivationGuard(options.canvas);
     this.connectCanvasEvents();
   }
 

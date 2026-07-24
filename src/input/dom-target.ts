@@ -1,3 +1,5 @@
+import { runWithDomActivation } from './dom-activation';
+
 const syntheticPointerEvents = new WeakSet<Event>();
 
 export function resolveDomTarget(
@@ -71,6 +73,8 @@ export function activateDomTarget(target: Element): boolean {
     return false;
   }
 
-  target.click();
+  runWithDomActivation(target, () => {
+    target.click();
+  });
   return true;
 }
