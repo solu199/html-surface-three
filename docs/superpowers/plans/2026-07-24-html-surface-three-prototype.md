@@ -56,7 +56,7 @@
 **Interfaces:**
 - Produces: `UvPoint`, `DomPoint`, `DomSize`, `uvToDomPoint(uv, size)`, `copyAndTransformUv(uv, transform?)`
 
-- [ ] **Step 1: packageとbuild設定を作る**
+- [x] **Step 1: packageとbuild設定を作る**
 
 `package.json`のscriptsを次に固定する。
 
@@ -109,7 +109,7 @@
 
 Vite library buildは`src/index.ts`をentryとし、`three`と`three-html-render`で始まるimportをexternalにする。demo buildは`dist-demo`へ出力し、libraryの`dist`を上書きしない。
 
-- [ ] **Step 2: UV変換の失敗テストを書く**
+- [x] **Step 2: UV変換の失敗テストを書く**
 
 ```ts
 import { describe, expect, it } from 'vitest';
@@ -133,13 +133,13 @@ describe('uvToDomPoint', () => {
 });
 ```
 
-- [ ] **Step 3: テストがexport未定義で失敗することを確認する**
+- [x] **Step 3: テストがexport未定義で失敗することを確認する**
 
 Run: `npm install && npm test -- tests/coordinates.test.ts`
 
 Expected: `coordinates` moduleまたはexportが存在しないためFAIL。
 
-- [ ] **Step 4: 最小実装を追加する**
+- [x] **Step 4: 最小実装を追加する**
 
 ```ts
 export type UvPoint = { x: number; y: number };
@@ -158,7 +158,7 @@ export function uvToDomPoint(uv: UvPoint, size: DomSize): DomPoint {
 }
 ```
 
-- [ ] **Step 5: 座標テストとtypecheckを通す**
+- [x] **Step 5: 座標テストとtypecheckを通す**
 
 Run: `npm test -- tests/coordinates.test.ts && npm run typecheck`
 
@@ -177,7 +177,7 @@ Expected: 全テストPASS、TypeScript error 0。
 - Consumes: `UvPoint`, `uvToDomPoint`, `copyAndTransformUv`
 - Produces: `resolveFrontmostHit()`, `createHtmlTextureBackend()`, `HtmlSurfaceManager`, `HtmlSurface`, `HtmlSurfaceOptions`, `HtmlSurfaceDebugState`
 
-- [ ] **Step 1: 遮蔽判定の失敗テストを書く**
+- [x] **Step 1: 遮蔽判定の失敗テストを書く**
 
 ```ts
 import { describe, expect, it } from 'vitest';
@@ -227,11 +227,11 @@ describe('resolveFrontmostHit', () => {
 });
 ```
 
-- [ ] **Step 2: 最前面判定を実装する**
+- [x] **Step 2: 最前面判定を実装する**
 
 `resolveFrontmostHit`はdistance昇順の交差を走査し、ignore対象を飛ばす。最初の有効交差がSurfaceでUVを持てば`surface`、Surfaceでなければ`blocked`、有効交差がなければ`none`を返す。SurfaceにUVがない場合は誤入力を防ぐため`blocked`にする。
 
-- [ ] **Step 3: backend境界を実装する**
+- [x] **Step 3: backend境界を実装する**
 
 `HtmlTextureBackend`は次の契約にする。
 
@@ -253,7 +253,7 @@ export type HtmlTextureBackend = {
 
 `createHtmlTextureBackend(canvas)`はpolyfill導入前に`requestPaint`とWebGLの`texElementImage2D`を検出して`kind`を決める。未対応時だけ`installHtmlInCanvasPolyfill()`を呼び、Canvasへ`layoutsubtree`属性を追加する。`mount()`はHTMLElementをCanvasの子へ追加し、`three-html-render/html-texture`の`HTMLTexture`を生成する。disposeはTextureとDOMを一度だけ解放する。
 
-- [ ] **Step 4: `HtmlSurfaceManager`の縦切りを実装する**
+- [x] **Step 4: `HtmlSurfaceManager`の縦切りを実装する**
 
 公開する最小オプションは次とする。
 
@@ -286,7 +286,7 @@ DOM座標は`texture.transformUv()`または`transformUv`を適用した後、`u
 
 `dispose()`はイベントリスナーを外し、全Surfaceをdisposeする。Surface disposeはMaterial mapを元に戻し、指定された所有物だけを破棄する。
 
-- [ ] **Step 5: coreテスト、typecheck、library buildを通す**
+- [x] **Step 5: coreテスト、typecheck、library buildを通す**
 
 Run: `npm test && npm run typecheck && npm run build:lib`
 
@@ -304,11 +304,11 @@ Expected: 全テストPASS、TypeScript error 0、`dist/html-surface-three.js`�
 - Consumes: `HtmlSurfaceManager`
 - Produces: stable Chromiumで操作可能なReact Surface、Vanilla Surface、遮蔽物、診断HUD
 
-- [ ] **Step 1: HTML entryとCSSを作る**
+- [x] **Step 1: HTML entryとCSSを作る**
 
 `index.html`には`canvas#scene`、`aside#hud`、WebGL失敗時の`div#fallback`を置き、`/src/demo/main.tsx`をmoduleとして読む。`.surface-source`は固定width／height、背景色、フォーム部品、スクロール領域を自身のclassだけでスタイルし、Canvas親セレクターへ依存させない。
 
-- [ ] **Step 2: React操作パネルを作る**
+- [x] **Step 2: React操作パネルを作る**
 
 `ControlPanel`は次を持つ。
 
@@ -319,7 +319,7 @@ Expected: 全テストPASS、TypeScript error 0、`dist/html-surface-three.js`�
 
 状態更新はReactの`useState`だけで行い、コアライブラリ固有hookは作らない。
 
-- [ ] **Step 3: Three.jsシーンと2つのSurfaceを作る**
+- [x] **Step 3: Three.jsシーンと2つのSurfaceを作る**
 
 React elementは640×420、Vanilla elementは360×240とする。React panelはモニターのPlaneGeometryへ、Vanilla panelは別の傾いたPlaneGeometryへ登録する。React rootはSurface登録後にmountし、入力guardがReactのdelegated listenerより先に登録される順序にする。
 
@@ -327,13 +327,13 @@ React elementは640×420、Vanilla elementは360×240とする。React panelは�
 
 HUDはbackend、hit kind、object名、surface ID、UV、DOM座標を表示する。HUD自体は検証用で、library APIに含めない。
 
-- [ ] **Step 4: demo buildを通す**
+- [x] **Step 4: demo buildを通す**
 
 Run: `npm run build:demo`
 
 Expected: `dist-demo/index.html`とassetが生成され、build error 0。
 
-- [ ] **Step 5: stable Chromiumで縦切りを確認する**
+- [x] **Step 5: stable Chromiumで縦切りを確認する**
 
 Run: `npm run dev -- --host 127.0.0.1`
 
@@ -356,7 +356,7 @@ Run: `npm run dev -- --host 127.0.0.1`
 **Interfaces:**
 - Produces: 第三者が試せる日本語ドキュメントと検証済み成果物
 
-- [ ] **Step 1: READMEを書く**
+- [x] **Step 1: READMEを書く**
 
 READMEに以下をこの順で記載する。
 
@@ -371,13 +371,13 @@ READMEに以下をこの順で記載する。
 9. Vanilla APIの使用例
 10. Reactは通常のHTMLElementを作るだけという使用例
 
-- [ ] **Step 2: 全検証を実行する**
+- [x] **Step 2: 全検証を実行する**
 
 Run: `npm run build`
 
 Expected: typecheck、unit test、library build、demo buildがすべて成功する。
 
-- [ ] **Step 3: ブラウザを再確認する**
+- [x] **Step 3: ブラウザを再確認する**
 
 stable ChromiumでTask 3の確認項目を再実行し、console errorとuncaught exceptionが0であることを確認する。視覚状態をスクリーンショットで確認する。
 

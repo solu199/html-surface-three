@@ -135,8 +135,8 @@ CapabilityReport、詳細な診断UI、React Three Fiberアダプター、画像
 const surface = manager.add({
   element,
   mesh,
-  materialTarget: { material: mesh.material, property: 'map' },
-  textureFactory,
+  material: mesh.material,
+  mapProperty: 'map',
   transformUv: (uv, texture) => texture.transformUv(uv),
 });
 
@@ -151,21 +151,22 @@ Mesh生成を強制しない。利用者が用意した既存Meshへ関連付け
 Texture作成は次のような小さな契約に閉じ込める。
 
 ```ts
-type SurfaceTextureHandle = {
+type HtmlTextureHandle = {
   texture: THREE.Texture;
   invalidate(): void;
   dispose(): void;
 };
 
-type SurfaceTextureFactory = (
-  element: HTMLElement,
-  context: { canvas: HTMLCanvasElement },
-) => SurfaceTextureHandle;
+type HtmlTextureBackend = {
+  readonly kind: 'native' | 'polyfill';
+  mount(element: HTMLElement): HtmlTextureHandle;
+  requestPaint(): void;
+};
 ```
 
 実際の実装では`three-html-render`とThree.jsの型に合わせて簡略化してよい。重要なのは、サーフェス管理と入力ルーティングがHTML-in-Canvasの具体的なAPIシグネチャを知らないことである。
 
-プロトタイプではHTMLElement向けのfactoryから始める。公開リリースまでには、静止画は変更時のみ、動画は再生フレームに応じて、HTMLはpaintまたはinvalidateに応じて更新できるよう、描画更新の方針をTexture handle側へ閉じ込める。公開型の詳細は実測後に決めるが、管理層へメディア固有の更新分岐を持ち込まない。
+プロトタイプではHTMLElement向けのbackendから始める。公開リリースまでには、静止画は変更時のみ、動画は再生フレームに応じて、HTMLはpaintまたはinvalidateに応じて更新できるよう、描画更新の方針をTexture handle側へ閉じ込める。公開型の詳細は実測後に決めるが、管理層へメディア固有の更新分岐を持ち込まない。
 
 ### 6.3 メディアソースへの拡張境界
 
@@ -200,7 +201,7 @@ UVの向きやTexture transformはMeshごとに異なる可能性がある。初
 
 管理単位は一つのrenderer、camera、sceneに接続し、複数サーフェスを登録できるようにする。
 
-同じPointerに対してアクティブになるDOMサーフェスは一つだけとし、それ以外のDOMは画面外へ退避する。Pointer capture中は開始時のサーフェスを維持し、pointerupまたはpointercancelで解除する。
+同じPointerに対してアクティブになるDOMサーフェスは一つだけとし、それ以外のDOMは画面外へ退避する。初期プロトタイプは各イベント時点の最前面hitを再評価する。Pointer capture中に開始時のサーフェスを維持し、pointerupまたはpointercancelで解除する処理は次段階へ送る。
 
 複数renderer、複数camera、XR controller rayは最初の縦切りに含めない。ただし、入力ルーティングの内部を「スクリーン座標からRayを作る処理」と「Rayからサーフェスを選ぶ処理」に分けられる形にし、将来XR Rayを渡せる余地を残す。
 
@@ -210,13 +211,13 @@ UVの向きやTexture transformはMeshごとに異なる可能性がある。初
 
 ```tsx
 const element = document.createElement('div');
+const surface = manager.add({ element, mesh });
+
 const root = createRoot(element);
 root.render(<ControlPanel />);
-
-const surface = manager.add({ element, mesh });
 ```
 
-破棄時は、サーフェスを先に入力管理から外し、React rootをunmountし、DOMホストからelementを外す。
+破棄時はReact rootをunmountした後、サーフェスを入力管理とDOMホストから外す。
 
 ## 7. デモ
 
@@ -245,17 +246,22 @@ const surface = manager.add({ element, mesh });
 
 ## 8. エラー処理とフォールバック
 
+実装済み:
+
 - WebGLを作成できない場合は、3Dデモを開始せず理由をDOMへ表示する
 - HTML-in-Canvasが利用できない場合はpolyfill経路へ移る
-- polyfill初期化にも失敗した場合は、HTML要素を通常の2D DOMとして表示し、3D操作が利用できないことを示す
-- Raycast結果にUVがないMeshは操作対象外とし、開発時に一度だけ警告する
-- 0サイズのHTMLElementは登録時にエラーとし、必要なwidthとheightを案内する
+- Raycast結果にUVがないMeshは操作対象外とする
 - Texture生成の非同期更新中は直前フレームのTextureを維持する
+- サーフェス破棄は複数回呼んでも安全にする
+
+次段階:
+
+- polyfill初期化にも失敗した場合は、HTML要素を通常の2D DOMとして表示し、3D操作が利用できないことを示す
+- UVがないMeshと0サイズのHTMLElementへ、開発時に一度だけ分かりやすい警告を出す
 - 画像の読み込みまたはデコードに失敗した場合は、直前のTextureまたは診断用プレースホルダーを維持し、原因を通知する
 - 動画が未読み込み、再生終了、またはautoplay制限で停止している場合でも、レンダーループを失敗させない。ライブラリが利用者の許可なく再生を強制しない
 - クロスオリジン、DRM、ブラウザ制限により利用できないメディア経路は、別経路へ暗黙に偽装せず診断情報として公開する
 - 外部から渡されたvideo要素は、サーフェスの破棄だけで自動停止またはsrc破棄しない。所有権を持つ場合だけ関連リソースを解放する
-- サーフェス破棄は複数回呼んでも安全にする
 
 ## 9. 検証方針
 
@@ -266,7 +272,7 @@ const surface = manager.add({ element, mesh });
 - UVからDOM座標への変換
 - Texture transformを含むUV変換
 - 複数交差から最前面サーフェスまたは遮蔽物を選ぶ処理
-- 登録、削除、二重disposeのライフサイクル
+- Three.js r185とpolyfill 0.1.2のupload signature互換処理
 
 ### 9.2 ブラウザ検証
 
@@ -318,6 +324,15 @@ stable版Chromiumで次を操作する。
 - 静止画、動画、HTMLの更新方針を共通のTexture handleで十分に表現できるか
 - video要素の再生状態とリソース所有権をライブラリがどこまで管理するか
 - 表示専用メディアSurface向けのRaycastイベントを公開APIへ含めるか
+
+### 11.1 プロトタイプでの判断結果
+
+- `HtmlSurface`は独立classにせず、managerが所有するrecordと小さな公開handleにした
+- Texture生成は`HtmlTextureBackend`として差し替え可能にし、Surface管理層からr185とpolyfillの詳細を隔離した
+- 入力ルーティングと複数Surface管理は、状態量がまだ小さいため`HtmlSurfaceManager`へまとめた
+- `CapabilityReport`は追加せず、backend種別とhit情報をデモHUDだけに表示した
+- DOM整列方式でbutton、input、scrollを操作できたため維持した。ただしpointer capture、drag、IME、selectionは未完である
+- Reactは専用adapterを作らず、通常のReactDOM rootが生成するHTMLElementをVanilla APIへ渡す例に留めた
 
 ## 12. プロトタイプの完了条件
 
