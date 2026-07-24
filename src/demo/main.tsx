@@ -19,7 +19,7 @@ import {
   HtmlSurfaceManager,
   type HtmlSurfaceDebugState,
 } from '../index';
-import { ControlPanel } from './ControlPanel';
+import { MonitorSite } from './MonitorSite';
 import './styles.css';
 
 const canvas = requireElement<HTMLCanvasElement>('#scene');
@@ -118,7 +118,7 @@ const reactSurface = manager.add({
   mesh: monitor.screen,
 });
 const reactRoot = createRoot(reactElement);
-reactRoot.render(<ControlPanel backend={manager.backendKind} />);
+reactRoot.render(<MonitorSite backend={manager.backendKind} />);
 
 const vanillaElement = createVanillaPanel();
 const vanillaSurface = manager.add({
