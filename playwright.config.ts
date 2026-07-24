@@ -27,7 +27,7 @@ export default defineConfig({
   use: {
     baseURL: 'http://127.0.0.1:4173',
     screenshot: 'only-on-failure',
-    trace: 'retain-on-failure',
+    trace: process.env.CI ? 'on-first-retry' : 'retain-on-failure',
     video: process.env.CI ? 'off' : 'retain-on-failure',
   },
   webServer: {
