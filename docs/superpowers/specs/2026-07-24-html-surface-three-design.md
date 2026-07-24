@@ -13,6 +13,8 @@ HTML Surfaceが任意Meshへ関連付けられるとは、Meshを識別できる
 - Three.jsのTexture transformと利用者指定の変換を含め、交差点のUVをHTML内の座標へどう写像するか
 - Material、Texture、Geometryのうち、HTML Surfaceがどれを所有して破棄するか
 
+画像と動画はHTML Surfaceの主要な応用対象とする。`HTMLImageElement`や`HTMLVideoElement`を単独で表示する場合は、HTML-in-Canvasによる再ラスタライズを必須にせず、Three.jsの画像／動画向けTexture経路を選べるようにする。一方、画像や動画をテキスト、フォーム、再生コントロールなどと一つのHTMLレイアウトとして合成する場合は、HTML-in-Canvasまたはpolyfill経路を利用する。どちらの場合も、Meshとの関連付け、Material適用、UV変換、遮蔽、ライフサイクルは同じサーフェス管理層を再利用する。
+
 公開APIの細部は、プロトタイプで実際の所有権と入力状態を検証した後に決める。
 
 ## 2. 目的
@@ -29,6 +31,8 @@ HTMLまたはReactで作られたUIを、単なる画面上のDOMオーバーレ
 - HTML-in-Canvas対応時はnative経路、未対応時はpolyfill経路を選べる
 - Vanilla APIを中核とし、ReactDOMで生成したUIも同じAPIへ渡せる
 
+公開リリースまでには、単独の画像、単独の動画、HTMLとメディアを合成したUIへ応用しやすい描画ソース境界を整える。メディア対応のためにサーフェス管理、UV変換、遮蔽判定を作り直す必要がない状態を目標とする。
+
 ライブラリ名と公開APIはプロトタイプ期間中の仮称とする。実装中に責務分割が不自然だと判明した場合は、互換性よりも小さく理解しやすい構成を優先して変更する。
 
 ## 3. 非目標
@@ -40,8 +44,9 @@ HTMLまたはReactで作られたUIを、単なる画面上のDOMオーバーレ
 - 3D位置へDOMを重ねて見せるDOMオーバーレイライブラリ
 - ReactまたはReact Three Fiber専用ライブラリ
 - HTML-in-Canvas API自体のpolyfill
+- 画像デコーダ、動画デコーダ、メディアプレイヤーの再実装
 
-これらは必要に応じて交換可能な依存先、デモ用UI、または将来のアダプターとして利用する。
+これらは必要に応じて交換可能な依存先、デモ用UI、または将来のアダプターとして利用する。画像のデコード、動画の再生・一時停止・シーク・音声はブラウザと既存のメディアAPIへ委ねる。
 
 ## 4. 調査結果と作る価値
 
@@ -55,6 +60,7 @@ HTMLまたはReactで作られたUIを、単なる画面上のDOMオーバーレ
 - [Drei `Html`](https://drei.docs.pmnd.rs/misc/html) と[Babylon.js HtmlMesh](https://doc.babylonjs.com/addons/htmlMesh)は、CSS変形や深度マスクを使ってDOMと3Dを重ねる方式が中心で、実際のMeshテクスチャとは性質が異なる。通常のDOM操作には強い一方、WebXRや任意のMesh変形では制約がある。
 - [Canvas UI](https://canvasui.dev/docs) は、HTML-in-Canvasを利用してライブHTMLへWebGLエフェクトを重ねるクリエイティブコンポーネント集である。主眼はページ表現とエフェクトであり、3Dモデルの任意Meshを操作可能なUIサーフェスとして管理することではない。
 - `three-mesh-ui`や`@react-three/uikit`などは3DネイティブのUI部品を構築する。WebXRとの相性は良いが、既存のHTML／CSS／Reactコンポーネントをそのまま利用する方式ではない。
+- Three.jsには静止画やCanvas、動画をTextureとして扱う既存経路がある。単独メディアではこれらを利用し、HTMLレイアウトとの合成が必要な場合だけHTML描画バックエンドを利用することで、用途に応じた更新コストを選べる。
 
 ### 4.2 独自価値
 
@@ -66,6 +72,7 @@ HTMLのラスタライズ技術自体は再実装しない。本プロトタイ�
 - 複数サーフェス間でhover、focus、pointer、wheelの送り先を切り替える
 - DOM、Texture、Material、Geometry、イベントリスナーの所有権と破棄順序を管理する
 - native API、polyfill、将来の別レンダラーを差し替えられる境界を保つ
+- 画像、動画、HTML合成で異なる描画更新方式を使いながら、Mesh管理と遮蔽処理を共通化する
 
 ## 5. 採用方針
 
@@ -89,7 +96,22 @@ native HTML-in-Canvasが利用可能な場合はnative経路を優先し、利�
 6. ボタン、入力欄、スクロールを実際に操作する
 7. サーフェスを破棄し、DOMとGPUリソースとイベントリスナーを解放する
 
-CapabilityReport、詳細な診断UI、React Three Fiberアダプターなどは、この縦切りが動いた後にのみ追加する。
+CapabilityReport、詳細な診断UI、React Three Fiberアダプター、画像／動画向けの最適化アダプターなどは、この縦切りが動いた後に追加する。
+
+### 5.3 画像・動画の描画経路
+
+公開リリースに向けて、画像と動画は用途に応じて次の経路を選べるようにする。
+
+1. **単独の画像**  
+   `HTMLImageElement`などから通常の画像Textureを作り、HTMLラスタライズを経由せずMeshへ適用する。画像の内容が変わった場合だけ更新する。
+
+2. **単独の動画**  
+   `HTMLVideoElement`をブラウザ側で再生し、動画向けTextureとしてMeshへ適用する。再生、停止、シーク、音声、デコードはvideo要素が担当し、ライブラリは表示更新とサーフェス管理を担当する。
+
+3. **HTMLとメディアの合成**  
+   画像または動画を、テキスト、ボタン、フォーム、字幕、再生コントロールなどと同じDOMレイアウトに含めたい場合は、HTML-in-Canvasまたはpolyfill経路を利用する。
+
+どの経路も同じTexture handle契約へ収束させ、サーフェス管理側が画像、動画、HTMLの具体的な描画方式を判定しない構成とする。単独メディアで十分な場合に、HTML描画や毎フレームのCanvasコピーを強制しない。
 
 ## 6. 仮の構成
 
@@ -100,12 +122,12 @@ CapabilityReport、詳細な診断UI、React Three Fiberアダプターなどは
 サーフェスは最低限、次の情報を持つ。
 
 - 一意なID
-- sourceとなるHTMLElement
-- UIを表示するMesh
-- HTML由来のTexture
+- sourceとなるHTMLElement。初期実装では一般HTMLを対象とし、後から`HTMLImageElement`と`HTMLVideoElement`用の描画アダプターを追加できること
+- UIまたはメディアを表示するMesh
+- HTMLまたはメディア由来のTexture
 - Textureを適用するMaterialとmapの指定
 - UVからDOM座標への変換設定
-- Texture、Material、Geometryを誰が所有し、誰が破棄するか
+- Texture、Material、Geometry、DOM／メディア要素を誰が所有し、誰が破棄するか
 
 想定APIは次の程度から始める。
 
@@ -143,7 +165,20 @@ type SurfaceTextureFactory = (
 
 実際の実装では`three-html-render`とThree.jsの型に合わせて簡略化してよい。重要なのは、サーフェス管理と入力ルーティングがHTML-in-Canvasの具体的なAPIシグネチャを知らないことである。
 
-### 6.3 入力ルーティング
+プロトタイプではHTMLElement向けのfactoryから始める。公開リリースまでには、静止画は変更時のみ、動画は再生フレームに応じて、HTMLはpaintまたはinvalidateに応じて更新できるよう、描画更新の方針をTexture handle側へ閉じ込める。公開型の詳細は実測後に決めるが、管理層へメディア固有の更新分岐を持ち込まない。
+
+### 6.3 メディアソースへの拡張境界
+
+画像・動画対応では、次の責務を分離する。
+
+- **視覚ソース**：Meshへ適用するTextureを提供する
+- **更新方針**：静止画の変更、動画フレーム、HTMLの再描画を通知する
+- **操作対象**：DOM由来のfocus、selection、wheelを利用する要素が存在するかを示す
+- **所有権**：Texture、DOM要素、video要素、イベントリスナーのうち何をサーフェスが破棄するかを示す
+
+単独の画像や動画は表示専用サーフェスとして扱える。クリックなどが必要な場合は、DOM固有のイベント転送を必須にせず、同じRaycast／UV結果を利用者定義のハンドラーへ渡せる余地を残す。ブラウザ標準のvideo controlsを3D表面でそのまま操作したい場合は、HTML合成経路または別のHTML操作パネルを利用する。
+
+### 6.4 入力ルーティング
 
 入力ルーティングはrendererのCanvas上でPointerEventとWheelEventを受け取る。
 
@@ -159,7 +194,9 @@ UVの向きやTexture transformはMeshごとに異なる可能性がある。初
 
 `OrbitControls`との競合は、UIを操作しているPointerだけをCanvas操作から抑止する。常にControlsを停止する実装にはしない。
 
-### 6.4 複数サーフェス
+表示専用の画像・動画サーフェスではDOMイベント転送を省略できるが、Raycast、最前面判定、UV算出はHTML Surfaceと同じ処理を利用できるようにする。
+
+### 6.5 複数サーフェス
 
 管理単位は一つのrenderer、camera、sceneに接続し、複数サーフェスを登録できるようにする。
 
@@ -167,7 +204,7 @@ UVの向きやTexture transformはMeshごとに異なる可能性がある。初
 
 複数renderer、複数camera、XR controller rayは最初の縦切りに含めない。ただし、入力ルーティングの内部を「スクリーン座標からRayを作る処理」と「Rayからサーフェスを選ぶ処理」に分けられる形にし、将来XR Rayを渡せる余地を残す。
 
-### 6.5 Reactの扱い
+### 6.6 Reactの扱い
 
 コアはReactを依存関係に持たない。デモ側で次のようにReactDOMを通常のHTMLElementへマウントし、その要素をVanilla APIへ渡す。
 
@@ -198,6 +235,14 @@ const surface = manager.add({ element, mesh });
 
 診断表示はプロトタイプ検証用であり、初期公開APIへ含めない。
 
+公開リリース候補版では、応用例として次を追加する。
+
+- 静止画を任意Meshへ貼り、UV変換、アスペクト比、遮蔽を確認する例
+- 動画を3Dモニターへ表示し、再生中だけ映像が更新される例
+- 別のHTML Surfaceから動画の再生、一時停止、シークを操作する例
+- 画像または動画をHTMLレイアウト内のテキストやボタンと合成する例
+- 各例がnative media texture、native HTML-in-Canvas、polyfillのどの経路を利用しているかを示す診断表示
+
 ## 8. エラー処理とフォールバック
 
 - WebGLを作成できない場合は、3Dデモを開始せず理由をDOMへ表示する
@@ -206,6 +251,10 @@ const surface = manager.add({ element, mesh });
 - Raycast結果にUVがないMeshは操作対象外とし、開発時に一度だけ警告する
 - 0サイズのHTMLElementは登録時にエラーとし、必要なwidthとheightを案内する
 - Texture生成の非同期更新中は直前フレームのTextureを維持する
+- 画像の読み込みまたはデコードに失敗した場合は、直前のTextureまたは診断用プレースホルダーを維持し、原因を通知する
+- 動画が未読み込み、再生終了、またはautoplay制限で停止している場合でも、レンダーループを失敗させない。ライブラリが利用者の許可なく再生を強制しない
+- クロスオリジン、DRM、ブラウザ制限により利用できないメディア経路は、別経路へ暗黙に偽装せず診断情報として公開する
+- 外部から渡されたvideo要素は、サーフェスの破棄だけで自動停止またはsrc破棄しない。所有権を持つ場合だけ関連リソースを解放する
 - サーフェス破棄は複数回呼んでも安全にする
 
 ## 9. 検証方針
@@ -230,13 +279,26 @@ stable版Chromiumで次を操作する。
 - 遮蔽物の背後ではクリックできず、手前へ出ると再び操作できる
 - 複数サーフェス間でhoverとfocusが誤送信されない
 
+公開リリース前には、追加で次を確認する。
+
+- 静止画が不要な毎フレーム更新なしで表示される
+- 動画が再生中に更新され、一時停止中は不要な更新を抑えられる
+- 画像と動画でもHTML Surfaceと同じUV変換、遮蔽、Material適用を利用できる
+- HTML操作パネルからvideo要素の再生、一時停止、シークを行える
+- 画像または動画を含むHTML合成経路が、対応バックエンドで正しく更新される
+- 画像／動画Surfaceの破棄後に更新処理、GPUリソース、イベントリスナーが残らない
+- CORS、autoplay、DRMなどの制約が診断情報と文書に反映される
+
 可能であればFirefoxでもpolyfill経路の起動を確認する。WebXRは今回の完了条件に含めない。
 
 ## 10. 現時点で受け入れる制約
 
 - polyfill経路はSVG `foreignObject`による再描画とGPU uploadを含み、native経路より高コストである
 - CSS、form controlの見た目、textarea内部スクロール、contenteditable、`:visited`などはpolyfillの制約を受ける
-- クロスオリジン画像、iframe、動画、DRMコンテンツを完全にTexture化できるとは限らない
+- クロスオリジン画像と動画はCORS設定の影響を受け、HTML合成経路ではTexture化できない場合がある
+- iframe、DRM動画、保護されたメディアを完全にTexture化できるとは限らない
+- 単独動画の直接Texture経路と、video要素を含むHTML合成経路では、利用可能なブラウザ機能、性能、表示結果が一致しない場合がある
+- ブラウザのautoplay、音声出力、ユーザー操作要件は回避せず、そのまま制約として扱う
 - UVが重複するMeshやUVを持たないGeometryは、追加のマッピング情報なしでは正しく操作できない
 - 極端に歪んだ三角形や高頻度に変形するSkinnedMeshでは、DOM overlayとTextureの見え方に差が出る可能性がある
 - ブラウザのアクセシビリティツリーには実DOMを残せるが、3D上の視覚位置と読み上げ順序が自然に一致する保証はない
@@ -252,8 +314,12 @@ stable版Chromiumで次を操作する。
 - `CapabilityReport`を公開APIにするか、デモの診断値に留めるか
 - DOMをポインター位置へ移動する方式を維持するか、特定イベントだけUVから再送する方式を併用するか
 - React Three Fiber用hook／componentを別packageにするか、例だけ提供するか
+- 画像／動画アダプターをコアへ含めるか、任意の追加packageまたは公式recipeとして提供するか
+- 静止画、動画、HTMLの更新方針を共通のTexture handleで十分に表現できるか
+- video要素の再生状態とリソース所有権をライブラリがどこまで管理するか
+- 表示専用メディアSurface向けのRaycastイベントを公開APIへ含めるか
 
-## 12. 完了条件
+## 12. プロトタイプの完了条件
 
 - `npm install`と`npm run dev`で第三者がデモを起動できる
 - `npm run build`と自動テストが成功する
@@ -261,3 +327,15 @@ stable版Chromiumで次を操作する。
 - 遮蔽物が表示と入力の両方を遮る
 - READMEに概要、実現できたこと、制約、既存技術との差、今後の機能、実行方法、使用例を日本語で記載する
 - private GitHubリポジトリへソースと文書が保存される
+
+画像／動画アダプターの完成は最初の縦切りの完了条件には含めない。ただし、プロトタイプのTexture作成境界とサーフェス管理が、後からメディア対応を追加する際の作り直しを要求しないことをレビューする。
+
+## 13. 公開リリースまでのメディア拡張条件
+
+- 単独の静止画と単独の動画を、HTML Surfaceと同じMesh関連付け、Material適用、UV変換、遮蔽、ライフサイクル管理の上で扱える
+- 単独メディアでは、適切なThree.js Texture経路を利用し、不要なHTMLラスタライズまたはCanvasへの毎フレームコピーを強制しない
+- HTMLと画像／動画を合成する経路も残し、テキスト、フォーム、再生コントロールと組み合わせられる
+- 静止画、動画、HTMLの描画経路をアダプター境界で切り替えられ、サーフェス管理側の公開APIを用途ごとに分岐させない
+- 画像例、動画例、HTMLとメディアの合成例を実行可能なデモまたは公式サンプルとして提供する
+- 読み込み失敗、CORS、autoplay、DRM、所有権、破棄、性能上の差をREADMEへ記載する
+- メディア対応後も、プロトタイプで成立したHTML入力、最前面判定、複数Surface管理を壊さない
