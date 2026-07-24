@@ -41,7 +41,7 @@ jobs:
           if-no-files-found: ignore
 
   tier2:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -49,7 +49,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps firefox webkit
+      - run: npx playwright install firefox webkit
       - run: npm run test:e2e:smoke
       - if: always()
         uses: actions/upload-artifact@v4
