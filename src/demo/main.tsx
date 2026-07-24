@@ -41,6 +41,11 @@ const occlusionButton = requireElement<HTMLButtonElement>(
   '#toggle-occlusion',
 );
 const e2eMode = new URLSearchParams(location.search).has('e2e');
+let e2eRenderRequested = true;
+
+function requestE2eRender() {
+  e2eRenderRequested = true;
+}
 
 let renderer: WebGLRenderer;
 try {
@@ -120,6 +125,7 @@ const manager = new HtmlSurfaceManager({
   scene,
   onDebugChange(state) {
     latestDebug = state;
+    requestE2eRender();
   },
 });
 
@@ -216,14 +222,6 @@ function syncAnimationButton() {
   animationButton.textContent = animationPaused
     ? 'Resume motion'
     : 'Pause motion';
-}
-
-let e2eRenderRequested = true;
-let lastE2eRenderEnd = Number.NEGATIVE_INFINITY;
-const e2eFrameIntervalMs = 250;
-
-function requestE2eRender() {
-  e2eRenderRequested = true;
 }
 
 if (e2eMode) {
@@ -324,11 +322,7 @@ function render(time: number) {
     blocker.updateMatrixWorld(true);
   }
 
-  const shouldRender = (
-    !e2eMode
-    || e2eRenderRequested
-    || time - lastE2eRenderEnd >= e2eFrameIntervalMs
-  );
+  const shouldRender = !e2eMode || e2eRenderRequested;
   if (shouldRender) {
     controls.update();
     manager.update();
@@ -337,7 +331,6 @@ function render(time: number) {
 
     if (e2eMode) {
       e2eRenderRequested = false;
-      lastE2eRenderEnd = performance.now();
     }
     if (firstFrame) {
       firstFrame = false;
