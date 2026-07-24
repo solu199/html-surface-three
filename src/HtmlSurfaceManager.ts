@@ -1,10 +1,10 @@
 import {
   Material,
   Mesh,
-  Object3D,
   Raycaster,
   Vector2,
   type Camera,
+  type Object3D,
   type Scene,
   type Texture,
   type WebGLRenderer,
@@ -13,9 +13,14 @@ import {
 import {
   createHtmlTextureBackend,
   type BackendKind,
+  type BackendPreference,
   type HtmlTextureBackend,
   type HtmlTextureHandle,
 } from './backends/html-texture-backend';
+import {
+  createCapabilityReport,
+  type CapabilityReport,
+} from './core/capabilities';
 import {
   copyAndTransformUv,
   uvToDomPoint,
@@ -23,6 +28,16 @@ import {
   type UvPoint,
 } from './core/coordinates';
 import { resolveFrontmostHit } from './core/hit-test';
+import { HtmlSurfaceError } from './core/errors';
+import {
+  MaterialBindingClaims,
+  bindSurfaceTexture,
+  type MaterialBinding,
+} from './core/material-binding';
+import {
+  SurfaceRegistry,
+  type SurfaceRegistration,
+} from './core/surface-registry';
 
 const PARKED_TRANSFORM = 'translate(-100000px, 0)';
 const STOPPED_EVENTS = [
@@ -34,6 +49,39 @@ const STOPPED_EVENTS = [
   'pointerup',
 ] as const;
 
+function captureElementStyle(element: HTMLElement): ElementStyleSnapshot {
+  return {
+    htmlSurfaceId: element.getAttribute('data-html-surface-id'),
+    left: element.style.left,
+    position: element.style.position,
+    pointerEvents: element.style.pointerEvents,
+    top: element.style.top,
+    transform: element.style.transform,
+    transformOrigin: element.style.transformOrigin,
+    willChange: element.style.willChange,
+  };
+}
+
+function restoreElementStyle(
+  element: HTMLElement,
+  snapshot: ElementStyleSnapshot,
+): void {
+  if (snapshot.htmlSurfaceId === null) {
+    element.removeAttribute('data-html-surface-id');
+  } else {
+    element.setAttribute('data-html-surface-id', snapshot.htmlSurfaceId);
+  }
+  Object.assign(element.style, {
+    left: snapshot.left,
+    position: snapshot.position,
+    pointerEvents: snapshot.pointerEvents,
+    top: snapshot.top,
+    transform: snapshot.transform,
+    transformOrigin: snapshot.transformOrigin,
+    willChange: snapshot.willChange,
+  });
+}
+
 export type HtmlSurfaceOptions = {
   id?: string;
   element: HTMLElement;
@@ -44,6 +92,7 @@ export type HtmlSurfaceOptions = {
   transformUv?: (uv: Vector2, texture: Texture) => void;
   disposeMaterial?: boolean;
   disposeGeometry?: boolean;
+  enabled?: boolean;
 };
 
 export type HtmlSurface = {
@@ -51,7 +100,10 @@ export type HtmlSurface = {
   readonly element: HTMLElement;
   readonly mesh: Mesh;
   readonly texture: Texture;
+  readonly enabled: boolean;
+  readonly ready: Promise<void>;
   invalidate(): void;
+  setEnabled(enabled: boolean): void;
   dispose(): void;
 };
 
@@ -67,25 +119,31 @@ export type HtmlSurfaceManagerOptions = {
   renderer: WebGLRenderer;
   camera: Camera;
   scene: Scene;
-  backend?: HtmlTextureBackend;
+  backend?: BackendPreference | HtmlTextureBackend;
   onDebugChange?: (state: HtmlSurfaceDebugState) => void;
 };
 
-type MaterialRecord = Material & {
-  [key: string]: unknown;
+type ElementStyleSnapshot = {
+  htmlSurfaceId: string | null;
+  left: string;
+  position: string;
+  pointerEvents: string;
+  top: string;
+  transform: string;
+  transformOrigin: string;
+  willChange: string;
 };
 
-type SurfaceRecord = {
+type SurfaceRecord = SurfaceRegistration & {
   id: string;
   element: HTMLElement;
   mesh: Mesh;
-  material: MaterialRecord;
-  mapProperty: string;
-  previousMap: unknown;
+  materialIndex: number;
+  enabled: boolean;
+  binding: MaterialBinding;
   textureHandle: HtmlTextureHandle;
   transformUv?: HtmlSurfaceOptions['transformUv'];
-  disposeMaterial: boolean;
-  disposeGeometry: boolean;
+  elementSnapshot: ElementStyleSnapshot;
   eventCleanup: Array<() => void>;
   disposed: boolean;
   api: HtmlSurface;
@@ -98,11 +156,12 @@ export class HtmlSurfaceManager {
   private readonly camera: Camera;
   private readonly scene: Scene;
   private readonly backend: HtmlTextureBackend;
+  private readonly capabilities: CapabilityReport;
   private readonly onDebugChange?: (state: HtmlSurfaceDebugState) => void;
   private readonly raycaster = new Raycaster();
   private readonly pointerNdc = new Vector2();
-  private readonly surfaces = new Set<SurfaceRecord>();
-  private readonly surfacesByMesh = new Map<Object3D, SurfaceRecord>();
+  private readonly bindingClaims = new MaterialBindingClaims();
+  private readonly registry = new SurfaceRegistry<SurfaceRecord>();
   private readonly canvasCleanup: Array<() => void> = [];
 
   private idSequence = 0;
@@ -114,12 +173,31 @@ export class HtmlSurfaceManager {
     this.renderer = options.renderer;
     this.camera = options.camera;
     this.scene = options.scene;
-    this.backend = options.backend
-      ?? createHtmlTextureBackend({
+    const backendOption = options.backend ?? 'auto';
+    const requestedBackend: BackendPreference =
+      typeof backendOption === 'string'
+        ? backendOption
+        : backendOption.kind;
+    this.backend = typeof backendOption === 'string'
+      ? createHtmlTextureBackend({
         sourceCanvas: options.renderer.domElement,
-      });
+        preference: backendOption,
+      })
+      : backendOption;
     this.backendKind = this.backend.kind;
     this.onDebugChange = options.onDebugChange;
+    this.capabilities = createCapabilityReport({
+      requested: requestedBackend,
+      active: this.backend.kind,
+      nativeAvailable: this.backend.nativeAvailable,
+      pointerEvents: typeof globalThis.PointerEvent !== 'undefined',
+      pointerCapture: 'setPointerCapture' in options.renderer.domElement,
+      touch: (
+        'ontouchstart' in globalThis
+        || (globalThis.navigator?.maxTouchPoints ?? 0) > 0
+      ),
+      webgl: true,
+    });
 
     this.connectCanvasEvents();
   }
@@ -127,17 +205,47 @@ export class HtmlSurfaceManager {
   add(options: HtmlSurfaceOptions): HtmlSurface {
     this.assertActive();
 
-    const material = this.resolveMaterial(options);
-    const mapProperty = options.mapProperty ?? 'map';
-    const previousMap = material[mapProperty];
-    const textureHandle = this.backend.mount(options.element);
     const id = options.id ?? `html-surface-${++this.idSequence}`;
+    if (this.registry.hasId(id)) {
+      throw new HtmlSurfaceError(
+        'duplicate-surface-id',
+        `HTML Surface ID "${id}"は既に使用されています。`,
+      );
+    }
 
+    let textureHandle: HtmlTextureHandle;
+    try {
+      textureHandle = this.backend.mount(options.element);
+    } catch (cause) {
+      throw new HtmlSurfaceError(
+        'backend-initialization-failed',
+        'HTML Texture Backendを初期化できませんでした。',
+        { cause },
+      );
+    }
+
+    let binding: MaterialBinding;
+    try {
+      binding = bindSurfaceTexture({
+        mesh: options.mesh,
+        material: options.material,
+        materialIndex: options.materialIndex,
+        mapProperty: options.mapProperty,
+        texture: textureHandle.texture,
+        disposeMaterial: options.disposeMaterial,
+        disposeGeometry: options.disposeGeometry,
+      }, this.bindingClaims);
+    } catch (error) {
+      textureHandle.dispose();
+      throw error;
+    }
+
+    const elementSnapshot = captureElementStyle(options.element);
     options.element.dataset.htmlSurfaceId = id;
     Object.assign(options.element.style, {
       left: '0',
       position: 'absolute',
-      pointerEvents: 'auto',
+      pointerEvents: options.enabled === false ? 'none' : 'auto',
       top: '0',
       transform: PARKED_TRANSFORM,
       transformOrigin: '0 0',
@@ -150,7 +258,28 @@ export class HtmlSurfaceManager {
       element: options.element,
       mesh: options.mesh,
       texture: textureHandle.texture,
-      invalidate: textureHandle.invalidate,
+      get enabled() {
+        return record.enabled;
+      },
+      ready: textureHandle.ready,
+      invalidate: () => {
+        if (!record.disposed) {
+          textureHandle.invalidate();
+        }
+      },
+      setEnabled: (enabled) => {
+        if (record.disposed) {
+          throw new HtmlSurfaceError(
+            'surface-disposed',
+            `HTML Surface "${record.id}"は既に破棄されています。`,
+          );
+        }
+        record.enabled = enabled;
+        record.element.style.pointerEvents = enabled ? 'auto' : 'none';
+        if (!enabled) {
+          record.element.style.transform = PARKED_TRANSFORM;
+        }
+      },
       dispose: () => this.removeRecord(record),
     };
 
@@ -158,23 +287,18 @@ export class HtmlSurfaceManager {
       id,
       element: options.element,
       mesh: options.mesh,
-      material,
-      mapProperty,
-      previousMap,
+      materialIndex: binding.materialIndex,
+      enabled: options.enabled ?? true,
+      binding,
       textureHandle,
       transformUv: options.transformUv,
-      disposeMaterial: options.disposeMaterial ?? false,
-      disposeGeometry: options.disposeGeometry ?? false,
+      elementSnapshot,
       eventCleanup: [],
       disposed: false,
       api,
     } satisfies SurfaceRecord);
 
-    material[mapProperty] = textureHandle.texture;
-    material.needsUpdate = true;
-
-    this.surfaces.add(record);
-    this.surfacesByMesh.set(options.mesh, record);
+    this.registry.add(record);
     this.connectSurfaceEvents(record);
     textureHandle.invalidate();
 
@@ -199,6 +323,16 @@ export class HtmlSurfaceManager {
     };
   }
 
+  getCapabilityReport(): CapabilityReport {
+    return {
+      ...this.capabilities,
+      backend: { ...this.capabilities.backend },
+      input: { ...this.capabilities.input },
+      rendering: { ...this.capabilities.rendering },
+      warnings: Object.freeze([...this.capabilities.warnings]),
+    };
+  }
+
   dispose(): void {
     if (this.disposed) {
       return;
@@ -208,7 +342,7 @@ export class HtmlSurfaceManager {
     for (const cleanup of this.canvasCleanup.splice(0)) {
       cleanup();
     }
-    for (const surface of [...this.surfaces]) {
+    for (const surface of this.registry.values()) {
       this.removeRecord(surface);
     }
     this.lastPointer = undefined;
@@ -217,29 +351,11 @@ export class HtmlSurfaceManager {
 
   private assertActive(): void {
     if (this.disposed) {
-      throw new Error('HtmlSurfaceManager has already been disposed.');
+      throw new HtmlSurfaceError(
+        'manager-disposed',
+        'HtmlSurfaceManagerは既に破棄されています。',
+      );
     }
-  }
-
-  private resolveMaterial(options: HtmlSurfaceOptions): MaterialRecord {
-    if (options.material) {
-      return options.material as MaterialRecord;
-    }
-
-    const meshMaterial = options.mesh.material;
-    if (Array.isArray(meshMaterial)) {
-      const material = meshMaterial[options.materialIndex ?? 0];
-      if (!material) {
-        throw new Error('The selected materialIndex does not exist.');
-      }
-      return material as MaterialRecord;
-    }
-
-    if (!meshMaterial) {
-      throw new Error('An HTML Surface requires a target Material.');
-    }
-
-    return meshMaterial as MaterialRecord;
   }
 
   private connectCanvasEvents(): void {
@@ -389,12 +505,15 @@ export class HtmlSurfaceManager {
       .map((hit) => ({
         distance: hit.distance,
         object: hit.object,
+        materialIndex: hit.face?.materialIndex,
         uv: hit.uv ? { x: hit.uv.x, y: hit.uv.y } : undefined,
       }));
 
     const result = resolveFrontmostHit(
       intersections,
-      (object) => this.findSurfaceForObject(object),
+      (object, materialIndex) => (
+        this.registry.resolve(object, materialIndex ?? 0)
+      ),
       (object) => this.shouldIgnoreObject(object),
     );
 
@@ -456,20 +575,6 @@ export class HtmlSurfaceManager {
     return surface;
   }
 
-  private findSurfaceForObject(
-    object: Object3D,
-  ): SurfaceRecord | undefined {
-    let current: Object3D | null = object;
-    while (current) {
-      const surface = this.surfacesByMesh.get(current);
-      if (surface) {
-        return surface;
-      }
-      current = current.parent;
-    }
-    return undefined;
-  }
-
   private shouldIgnoreObject(object: Object3D): boolean {
     if (object.userData.htmlSurfaceRaycast === 'ignore') {
       return true;
@@ -492,7 +597,7 @@ export class HtmlSurfaceManager {
     activeSurface: SurfaceRecord,
     translation: DomPoint,
   ): void {
-    for (const surface of this.surfaces) {
+    for (const surface of this.registry.values()) {
       surface.element.style.transform = surface === activeSurface
         ? `translate(${translation.x}px, ${translation.y}px)`
         : PARKED_TRANSFORM;
@@ -500,7 +605,7 @@ export class HtmlSurfaceManager {
   }
 
   private parkAll(): void {
-    for (const surface of this.surfaces) {
+    for (const surface of this.registry.values()) {
       surface.element.style.transform = PARKED_TRANSFORM;
     }
   }
@@ -543,23 +648,14 @@ export class HtmlSurfaceManager {
     }
 
     surface.disposed = true;
-    this.surfaces.delete(surface);
-    this.surfacesByMesh.delete(surface.mesh);
+    this.registry.remove(surface);
     for (const cleanup of surface.eventCleanup.splice(0)) {
       cleanup();
     }
 
-    if (surface.material[surface.mapProperty] === surface.textureHandle.texture) {
-      surface.material[surface.mapProperty] = surface.previousMap;
-      surface.material.needsUpdate = true;
-    }
-
+    surface.binding.restore();
     surface.textureHandle.dispose();
-    if (surface.disposeMaterial) {
-      surface.material.dispose();
-    }
-    if (surface.disposeGeometry) {
-      surface.mesh.geometry.dispose();
-    }
+    surface.binding.disposeOwnedResources();
+    restoreElementStyle(surface.element, surface.elementSnapshot);
   }
 }

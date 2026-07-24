@@ -43,6 +43,10 @@ export class SurfaceRegistry<
     }
   }
 
+  hasId(id: string): boolean {
+    return this.ids.has(id);
+  }
+
   resolve(
     object: Object3D,
     materialIndex = 0,
