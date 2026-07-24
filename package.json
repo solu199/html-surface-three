@@ -52,6 +52,7 @@
     "test:e2e": "playwright test",
     "test:e2e:tier1": "playwright test tests/e2e/tier1.spec.ts",
     "test:e2e:smoke": "playwright test tests/e2e/smoke.spec.ts",
+    "test:e2e:evidence": "playwright test tests/e2e/tier1.spec.ts --config=playwright.evidence.config.ts --project=chrome --grep \"移動・回転後\"",
     "test:visual": "playwright test tests/e2e/visual.spec.ts --project=chrome",
     "build:lib": "vite build --config vite.lib.config.ts && tsc -p tsconfig.lib.json",
     "build:demo": "vite build",

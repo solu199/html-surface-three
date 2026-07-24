@@ -193,6 +193,7 @@ npm test
 npm run build
 npm run test:e2e:tier1
 npm run test:e2e:smoke
+npm run test:e2e:evidence
 npm run test:visual
 npm run verify:package
 npm run verify
@@ -201,6 +202,7 @@ npm run verify
 - library ESMと型宣言: `dist/`
 - production demo: `dist-demo/`
 - E2E成果物: `artifacts/`
+- `test:e2e:evidence`: 主要フローのvideo、trace、最終screenshot、HTML reportを保存
 - `verify:package`: `npm pack`したtarballを一時consumerへinstallし、型とruntime exportを検査
 
 ローカルtarballを別プロジェクトで試す場合:
