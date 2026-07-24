@@ -38,20 +38,18 @@ import {
   SurfaceRegistry,
   type SurfaceRegistration,
 } from './core/surface-registry';
+import {
+  DomInputRouter,
+  type InputDebugState,
+  type RoutedSurfaceHit,
+} from './input/dom-input-router';
 
 const PARKED_TRANSFORM = 'translate(-100000px, 0)';
-const STOPPED_EVENTS = [
-  'click',
-  'contextmenu',
-  'dblclick',
-  'pointerdown',
-  'pointermove',
-  'pointerup',
-] as const;
 
 function captureElementStyle(element: HTMLElement): ElementStyleSnapshot {
   return {
     htmlSurfaceId: element.getAttribute('data-html-surface-id'),
+    inert: element.inert,
     left: element.style.left,
     position: element.style.position,
     pointerEvents: element.style.pointerEvents,
@@ -71,6 +69,7 @@ function restoreElementStyle(
   } else {
     element.setAttribute('data-html-surface-id', snapshot.htmlSurfaceId);
   }
+  element.inert = snapshot.inert;
   Object.assign(element.style, {
     left: snapshot.left,
     position: snapshot.position,
@@ -113,6 +112,8 @@ export type HtmlSurfaceDebugState = {
   surfaceId?: string;
   uv?: UvPoint;
   domPoint?: DomPoint;
+  focusTarget?: string;
+  capturedPointerId?: number;
 };
 
 export type HtmlSurfaceManagerOptions = {
@@ -125,6 +126,7 @@ export type HtmlSurfaceManagerOptions = {
 
 type ElementStyleSnapshot = {
   htmlSurfaceId: string | null;
+  inert: boolean;
   left: string;
   position: string;
   pointerEvents: string;
@@ -144,8 +146,8 @@ type SurfaceRecord = SurfaceRegistration & {
   textureHandle: HtmlTextureHandle;
   transformUv?: HtmlSurfaceOptions['transformUv'];
   elementSnapshot: ElementStyleSnapshot;
-  eventCleanup: Array<() => void>;
   disposed: boolean;
+  invalidate(): void;
   api: HtmlSurface;
 };
 
@@ -157,17 +159,17 @@ export class HtmlSurfaceManager {
   private readonly scene: Scene;
   private readonly backend: HtmlTextureBackend;
   private readonly capabilities: CapabilityReport;
+  private readonly inputRouter: DomInputRouter;
   private readonly onDebugChange?: (state: HtmlSurfaceDebugState) => void;
   private readonly raycaster = new Raycaster();
   private readonly pointerNdc = new Vector2();
   private readonly bindingClaims = new MaterialBindingClaims();
   private readonly registry = new SurfaceRegistry<SurfaceRecord>();
-  private readonly canvasCleanup: Array<() => void> = [];
 
   private idSequence = 0;
   private disposed = false;
-  private lastPointer: { clientX: number; clientY: number } | undefined;
   private debugState: HtmlSurfaceDebugState = { kind: 'none' };
+  private inputDebugState: InputDebugState = {};
 
   constructor(options: HtmlSurfaceManagerOptions) {
     this.renderer = options.renderer;
@@ -199,7 +201,16 @@ export class HtmlSurfaceManager {
       webgl: true,
     });
 
-    this.connectCanvasEvents();
+    this.inputRouter = new DomInputRouter({
+      canvas: options.renderer.domElement,
+      routePoint: (clientX, clientY) => (
+        this.routePointer(clientX, clientY)
+      ),
+      onDebugChange: (state) => {
+        this.inputDebugState = state;
+        this.onDebugChange?.(this.getDebugState());
+      },
+    });
   }
 
   add(options: HtmlSurfaceOptions): HtmlSurface {
@@ -263,9 +274,7 @@ export class HtmlSurfaceManager {
       },
       ready: textureHandle.ready,
       invalidate: () => {
-        if (!record.disposed) {
-          textureHandle.invalidate();
-        }
+        record.invalidate();
       },
       setEnabled: (enabled) => {
         if (record.disposed) {
@@ -279,6 +288,7 @@ export class HtmlSurfaceManager {
         if (!enabled) {
           record.element.style.transform = PARKED_TRANSFORM;
         }
+        this.inputRouter.syncSurface(record);
       },
       dispose: () => this.removeRecord(record),
     };
@@ -293,29 +303,39 @@ export class HtmlSurfaceManager {
       textureHandle,
       transformUv: options.transformUv,
       elementSnapshot,
-      eventCleanup: [],
       disposed: false,
+      invalidate() {
+        if (!record.disposed) {
+          textureHandle.invalidate();
+        }
+      },
       api,
     } satisfies SurfaceRecord);
 
     this.registry.add(record);
-    this.connectSurfaceEvents(record);
+    this.inputRouter.registerSurface(record);
     textureHandle.invalidate();
 
     return api;
   }
 
   update(): void {
-    if (this.disposed || !this.lastPointer) {
+    if (this.disposed) {
       return;
     }
 
-    this.routePointer(this.lastPointer.clientX, this.lastPointer.clientY);
+    this.inputRouter.update();
   }
 
   getDebugState(): HtmlSurfaceDebugState {
     return {
       ...this.debugState,
+      surfaceId: (
+        this.debugState.surfaceId
+        ?? this.inputDebugState.surfaceId
+      ),
+      focusTarget: this.inputDebugState.focusTarget,
+      capturedPointerId: this.inputDebugState.capturedPointerId,
       uv: this.debugState.uv ? { ...this.debugState.uv } : undefined,
       domPoint: this.debugState.domPoint
         ? { ...this.debugState.domPoint }
@@ -339,13 +359,10 @@ export class HtmlSurfaceManager {
     }
 
     this.disposed = true;
-    for (const cleanup of this.canvasCleanup.splice(0)) {
-      cleanup();
-    }
+    this.inputRouter.dispose();
     for (const surface of this.registry.values()) {
       this.removeRecord(surface);
     }
-    this.lastPointer = undefined;
     this.publishDebug({ kind: 'none' });
   }
 
@@ -358,126 +375,10 @@ export class HtmlSurfaceManager {
     }
   }
 
-  private connectCanvasEvents(): void {
-    const canvas = this.renderer.domElement;
-
-    const onPointerMove = (event: PointerEvent) => {
-      this.lastPointer = {
-        clientX: event.clientX,
-        clientY: event.clientY,
-      };
-      this.routePointer(event.clientX, event.clientY);
-    };
-
-    const onPointerDown = (event: PointerEvent) => {
-      this.lastPointer = {
-        clientX: event.clientX,
-        clientY: event.clientY,
-      };
-      const surface = this.routePointer(event.clientX, event.clientY);
-      if (surface && event.target === canvas) {
-        event.stopImmediatePropagation();
-      }
-    };
-
-    const onWheel = (event: WheelEvent) => {
-      this.lastPointer = {
-        clientX: event.clientX,
-        clientY: event.clientY,
-      };
-      const surface = this.routePointer(event.clientX, event.clientY);
-      if (!surface || surface.element.contains(event.target as Node)) {
-        return;
-      }
-
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      this.scrollSurfaceAtPoint(surface, event);
-    };
-
-    canvas.addEventListener('pointermove', onPointerMove, true);
-    canvas.addEventListener('pointerdown', onPointerDown, true);
-    canvas.addEventListener('wheel', onWheel, {
-      capture: true,
-      passive: false,
-    });
-
-    this.canvasCleanup.push(
-      () => canvas.removeEventListener('pointermove', onPointerMove, true),
-      () => canvas.removeEventListener('pointerdown', onPointerDown, true),
-      () => canvas.removeEventListener('wheel', onWheel, true),
-    );
-  }
-
-  private connectSurfaceEvents(surface: SurfaceRecord): void {
-    const stopBubble = (event: Event) => {
-      event.stopPropagation();
-    };
-    for (const eventName of STOPPED_EVENTS) {
-      surface.element.addEventListener(eventName, stopBubble);
-      surface.eventCleanup.push(() => {
-        surface.element.removeEventListener(eventName, stopBubble);
-      });
-    }
-
-    const guardPointer = (event: PointerEvent) => {
-      this.lastPointer = {
-        clientX: event.clientX,
-        clientY: event.clientY,
-      };
-      const targetSurface = this.routePointer(event.clientX, event.clientY);
-      if (targetSurface !== surface) {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-      }
-    };
-
-    for (const eventName of ['pointerdown', 'pointerup', 'click'] as const) {
-      surface.element.addEventListener(eventName, guardPointer, true);
-      surface.eventCleanup.push(() => {
-        surface.element.removeEventListener(eventName, guardPointer, true);
-      });
-    }
-
-    const onSurfacePointerMove = (event: PointerEvent) => {
-      this.lastPointer = {
-        clientX: event.clientX,
-        clientY: event.clientY,
-      };
-      this.routePointer(event.clientX, event.clientY);
-    };
-    surface.element.addEventListener('pointermove', onSurfacePointerMove, true);
-    surface.eventCleanup.push(() => {
-      surface.element.removeEventListener(
-        'pointermove',
-        onSurfacePointerMove,
-        true,
-      );
-    });
-
-    const onWheel = (event: WheelEvent) => {
-      const targetSurface = this.routePointer(event.clientX, event.clientY);
-      if (targetSurface !== surface) {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        return;
-      }
-      event.stopPropagation();
-      queueMicrotask(surface.textureHandle.invalidate);
-    };
-    surface.element.addEventListener('wheel', onWheel, {
-      capture: true,
-      passive: false,
-    });
-    surface.eventCleanup.push(() => {
-      surface.element.removeEventListener('wheel', onWheel, true);
-    });
-  }
-
   private routePointer(
     clientX: number,
     clientY: number,
-  ): SurfaceRecord | undefined {
+  ): RoutedSurfaceHit | undefined {
     if (this.disposed) {
       return undefined;
     }
@@ -572,7 +473,10 @@ export class HtmlSurfaceManager {
       domPoint,
     });
 
-    return surface;
+    return {
+      surface,
+      domPoint,
+    };
   }
 
   private shouldIgnoreObject(object: Object3D): boolean {
@@ -610,33 +514,6 @@ export class HtmlSurfaceManager {
     }
   }
 
-  private scrollSurfaceAtPoint(
-    surface: SurfaceRecord,
-    event: WheelEvent,
-  ): void {
-    let node = document.elementFromPoint(event.clientX, event.clientY);
-    while (node && surface.element.contains(node)) {
-      if (node instanceof HTMLElement) {
-        const style = getComputedStyle(node);
-        const canScrollY = (
-          node.scrollHeight > node.clientHeight
-          && ['auto', 'scroll'].includes(style.overflowY)
-        );
-        if (canScrollY) {
-          node.scrollTop += event.deltaY;
-          surface.textureHandle.invalidate();
-          return;
-        }
-      }
-      node = node.parentElement;
-    }
-
-    if (surface.element.scrollHeight > surface.element.clientHeight) {
-      surface.element.scrollTop += event.deltaY;
-      surface.textureHandle.invalidate();
-    }
-  }
-
   private publishDebug(state: HtmlSurfaceDebugState): void {
     this.debugState = state;
     this.onDebugChange?.(this.getDebugState());
@@ -648,10 +525,8 @@ export class HtmlSurfaceManager {
     }
 
     surface.disposed = true;
+    this.inputRouter.unregisterSurface(surface);
     this.registry.remove(surface);
-    for (const cleanup of surface.eventCleanup.splice(0)) {
-      cleanup();
-    }
 
     surface.binding.restore();
     surface.textureHandle.dispose();
