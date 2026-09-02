@@ -4,7 +4,7 @@ import { assertPublicPackage } from '../scripts/package-contents.mjs';
 
 const manifest = {
   name: 'html-surface-three',
-  version: '0.1.0-rc.2',
+  version: '0.1.0',
   license: 'MIT',
   publishConfig: {
     access: 'public',
@@ -50,6 +50,16 @@ describe('assertPublicPackage', () => {
       manifest: {
         ...manifest,
         publishConfig: undefined,
+      },
+    })).toThrow(/public package metadata/i);
+  });
+
+  it('requires a non-empty version string', () => {
+    expect(() => assertPublicPackage({
+      files: publicFiles,
+      manifest: {
+        ...manifest,
+        version: '',
       },
     })).toThrow(/public package metadata/i);
   });
