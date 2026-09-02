@@ -1,5 +1,24 @@
 # 変更履歴
 
+## 0.1.0
+
+Release date: 2026-09-02
+
+### Added
+
+- Stable `raycastRoots` option for limiting recursive pointer raycasts while preserving scene-aware occlusion.
+
+### Changed
+
+- Promoted the interaction and lifecycle API from `0.1.0-rc.2` to stable.
+- Rewrote the stable API and limitations documentation in concise English.
+- Documented automatic DOM invalidation, caller-owned resources, and configurable raycast-root ownership.
+
+### Compatibility
+
+- Three.js `>=0.184.0 <0.186.0`
+- Node.js `^20.19.0 || >=22.12.0`
+
 ## 0.1.0-rc.2
 
 公開日: 2026-07-25

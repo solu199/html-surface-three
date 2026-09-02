@@ -2,11 +2,11 @@
 
 ## Supported versions
 
-Security fixes are applied to the latest release candidate. Older prereleases may be asked to upgrade before a fix is investigated.
+Security fixes are applied to the current stable release. Older versions may be asked to upgrade before a fix is investigated.
 
 | Version | Supported |
 |---|---|
-| `0.1.0-rc.x` | Yes |
+| `0.1.x` | Yes |
 | Earlier prototypes | No |
 
 ## Reporting a vulnerability

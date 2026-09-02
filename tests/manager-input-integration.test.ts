@@ -2,8 +2,10 @@
 
 import {
   BoxGeometry,
+  Group,
   Mesh,
   MeshBasicMaterial,
+  type Object3D,
   PerspectiveCamera,
   PlaneGeometry,
   Scene,
@@ -31,7 +33,9 @@ function pointer(
   });
 }
 
-function createHarness() {
+function createHarness(options: {
+  raycastRoots?: readonly Object3D[];
+} = {}) {
   const canvas = document.createElement('canvas');
   Object.defineProperty(canvas, 'getBoundingClientRect', {
     value: () => ({
@@ -68,13 +72,16 @@ function createHarness() {
     new MeshBasicMaterial(),
   );
   screen.name = 'screen';
-  scene.add(screen);
+  const surfaceGroup = new Group();
+  surfaceGroup.add(screen);
+  scene.add(surfaceGroup);
   scene.updateMatrixWorld(true);
   const manager = new HtmlSurfaceManager({
     renderer: { domElement: canvas } as never,
     camera,
     scene,
     backend,
+    raycastRoots: options.raycastRoots,
   });
   const root = document.createElement('div');
   const button = document.createElement('button');
@@ -101,6 +108,7 @@ function createHarness() {
     root,
     scene,
     screen,
+    surfaceGroup,
     surface,
   };
 }
@@ -123,6 +131,29 @@ describe('HtmlSurfaceManager input integration', () => {
     blocker.position.z = 1;
     scene.add(blocker);
     scene.updateMatrixWorld(true);
+    canvas.dispatchEvent(pointer('pointerdown', 2));
+    canvas.dispatchEvent(pointer('pointerup', 2));
+
+    expect(click).toHaveBeenCalledOnce();
+  });
+
+  it('raycastRoots外の手前のMeshを除外してDOM buttonへ配送する', () => {
+    const raycastRoots: Object3D[] = [];
+    const { button, canvas, scene, surfaceGroup } = createHarness({
+      raycastRoots,
+    });
+    raycastRoots.push(surfaceGroup);
+    const click = vi.fn();
+    button.addEventListener('click', click);
+
+    const blocker = new Mesh(
+      new BoxGeometry(1, 1, 0.2),
+      new MeshBasicMaterial(),
+    );
+    blocker.position.z = 1;
+    scene.add(blocker);
+    scene.updateMatrixWorld(true);
+
     canvas.dispatchEvent(pointer('pointerdown', 2));
     canvas.dispatchEvent(pointer('pointerup', 2));
 

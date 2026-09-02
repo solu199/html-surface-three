@@ -1,10 +1,10 @@
-# APIリファレンス
+# API reference
 
-この文書は`html-surface-three@0.1.0-rc.2`の安定エントリーポイントを説明します。描画Backendの差し替えAPIは[`html-surface-three/experimental`](backends.md)に分離されています。
+This page documents the stable entry point for `html-surface-three@0.1.0`. The replaceable rendering backend API remains isolated in [`html-surface-three/experimental`](backends.md).
 
 ## `HtmlSurfaceManager`
 
-HTML Surfaceの登録、scene全体を使った遮蔽判定、入力ルーティング、複数Surfaceのライフサイクルを管理します。
+Manages surface registration, occlusion-aware input routing, and the lifecycle of multiple surfaces.
 
 ```ts
 const manager = new HtmlSurfaceManager({
@@ -12,6 +12,7 @@ const manager = new HtmlSurfaceManager({
   camera,
   scene,
   backend: 'auto',
+  raycastRoots: [world, uiSurfaces],
   onDebugChange(state) {
     console.debug(state);
   },
@@ -20,27 +21,30 @@ const manager = new HtmlSurfaceManager({
 
 ### `HtmlSurfaceManagerOptions`
 
-| プロパティ | 型 | 既定値 | 所有権／補足 |
+| Property | Type | Default | Ownership / notes |
 |---|---|---|---|
-| `renderer` | `THREE.WebGLRenderer` | 必須 | 利用者所有。`domElement`から入力を受け取る |
-| `camera` | `THREE.Camera` | 必須 | 利用者所有。Raycastに使用 |
-| `scene` | `THREE.Scene` | 必須 | 利用者所有。遮蔽物を含め再帰Raycast |
-| `backend` | `'auto' \| 'polyfill' \| 'native' \| HtmlTextureBackend` | `'auto'` | 文字列以外はexperimental契約 |
-| `onDebugChange` | `(state) => void` | なし | hit、UV、focus、captureの診断通知 |
+| `renderer` | `THREE.WebGLRenderer` | required | Caller-owned; input is received from `domElement`. |
+| `camera` | `THREE.Camera` | required | Caller-owned; used for raycasting. |
+| `scene` | `THREE.Scene` | required | Caller-owned; supplies the default raycast roots. |
+| `raycastRoots` | `readonly THREE.Object3D[]` | `scene.children` | Caller-owned array read on every route; see below. |
+| `backend` | `'auto' \| 'polyfill' \| 'native' \| HtmlTextureBackend` | `'auto'` | Non-string values use the experimental contract. |
+| `onDebugChange` | `(state) => void` | none | Reports hit, UV, focus, and pointer-capture diagnostics. |
 
-`backend: 'auto'`はstableブラウザ優先でpolyfillを選びます。native経路を暗黙には選びません。
+`backend: 'auto'` selects the stable polyfill path and never opts into the experimental native path implicitly.
 
-### メソッド
+`raycastRoots` limits recursive pointer raycasts. Roots should not overlap, and every interactive surface and participating occluder must be below one of them. The manager keeps the supplied array reference, so a mutable array can be updated as the scene changes. An empty array intentionally disables pointer hits.
 
-| メソッド | 戻り値 | 説明 |
+### Methods
+
+| Method | Returns | Description |
 |---|---|---|
-| `add(options)` | `HtmlSurface` | HTMLElementとMeshを関連付ける |
-| `update()` | `void` | 最後のポインター位置を再評価し、動くMesh、Camera、遮蔽物へ追従する |
-| `getDebugState()` | `HtmlSurfaceDebugState` | 現在の入力診断のコピーを返す |
-| `getCapabilityReport()` | `CapabilityReport` | 選択Backendと利用可能な入力能力を返す |
-| `dispose()` | `void` | 全Surface、入力セッション、listenerを解放する。冪等 |
+| `add(options)` | `HtmlSurface` | Binds an element to a mesh. |
+| `update()` | `void` | Re-evaluates the last pointer position for moving meshes, cameras, and occluders. |
+| `getDebugState()` | `HtmlSurfaceDebugState` | Returns a copy of the current input diagnostics. |
+| `getCapabilityReport()` | `CapabilityReport` | Returns the active backend and input capabilities. |
+| `dispose()` | `void` | Idempotently releases surfaces, input sessions, and listeners. |
 
-`manager.update()`はrender loopで毎フレーム呼んでください。
+Call `manager.update()` once per render-loop frame.
 
 ```ts
 function frame() {
@@ -53,36 +57,38 @@ frame();
 
 ## `HtmlSurfaceOptions`
 
-| プロパティ | 型 | 既定値 | 所有権／補足 |
+| Property | Type | Default | Ownership / notes |
 |---|---|---|---|
-| `id` | `string` | 自動採番 | Manager内で一意 |
-| `element` | `HTMLElement` | 必須 | 利用者所有。実DOMとして保持される |
-| `mesh` | `THREE.Mesh` | 必須 | 表示とRaycastの対象 |
-| `material` | `THREE.Material` | `mesh.material` | 適用先を明示するときに指定 |
-| `materialIndex` | `number` | `0` | 複数Materialのスロット |
-| `mapProperty` | `string` | `'map'` | `emissiveMap`などTextureを保持するプロパティも指定可能 |
-| `transformUv` | `(uv, texture) => void` | `texture.transformUv` | Raycast UVからDOM座標への変換 |
-| `disposeMaterial` | `boolean` | `false` | `true`のときだけSurfaceがMaterialを破棄 |
-| `disposeGeometry` | `boolean` | `false` | `true`のときだけSurfaceがGeometryを破棄 |
-| `enabled` | `boolean` | `true` | 初期入力状態 |
+| `id` | `string` | generated | Unique within the manager. |
+| `element` | `HTMLElement` | required | Caller-owned live DOM element. |
+| `mesh` | `THREE.Mesh` | required | Display and raycast target. |
+| `material` | `THREE.Material` | `mesh.material` | Explicit binding target. |
+| `materialIndex` | `number` | `0` | Slot for multi-material meshes. |
+| `mapProperty` | `string` | `'map'` | Texture property, such as `emissiveMap`. |
+| `transformUv` | `(uv, texture) => void` | `texture.transformUv` | Maps raycast UVs to DOM coordinates. |
+| `disposeMaterial` | `boolean` | `false` | The surface disposes the material only when `true`. |
+| `disposeGeometry` | `boolean` | `false` | The surface disposes the geometry only when `true`. |
+| `enabled` | `boolean` | `true` | Initial input state. |
 
-同じMaterialの同じ`mapProperty`へ複数SurfaceをBindingすると`material-binding-conflict`になります。黙って上書きしません。
+Binding two surfaces to the same material and `mapProperty` throws `material-binding-conflict`; the existing binding is never silently overwritten.
 
 ## `HtmlSurface`
 
-| メンバー | 型 | 説明 |
+| Member | Type | Description |
 |---|---|---|
-| `id` | `string` | Surface ID |
-| `element` | `HTMLElement` | 描画ソース |
-| `mesh` | `THREE.Mesh` | 表示対象 |
-| `texture` | `THREE.Texture` | Backendが生成したTexture |
-| `enabled` | `boolean` | 現在の入力有効状態 |
-| `ready` | `Promise<void>` | 初期化完了 |
-| `invalidate()` | `void` | 再描画を要求。破棄後はno-op |
-| `setEnabled(enabled)` | `void` | 入力を有効化／無効化。破棄後は`surface-disposed` |
-| `dispose()` | `void` | Surfaceを破棄。冪等 |
+| `id` | `string` | Surface ID. |
+| `element` | `HTMLElement` | Rendering source. |
+| `mesh` | `THREE.Mesh` | Display target. |
+| `texture` | `THREE.Texture` | Backend-created texture. |
+| `enabled` | `boolean` | Current input state. |
+| `ready` | `Promise<void>` | Resolves after initialization. |
+| `invalidate()` | `void` | Requests repaint; a no-op after disposal. |
+| `setEnabled(enabled)` | `void` | Changes input state; throws `surface-disposed` after disposal. |
+| `dispose()` | `void` | Idempotently disposes the surface. |
 
-破棄時は、MaterialのプロパティがまだSurfaceのTextureを参照している場合だけ元の値へ戻します。利用者が後から別Textureへ変更していた場合は上書きしません。React rootはライブラリではなく利用者が`unmount()`します。
+DOM mutations and `input`, `change`, `scroll`, and `compositionend` events invalidate automatically. Use `invalidate()` for paint changes that are not observable through DOM state or those events.
+
+On disposal, the original material property is restored only if it still references the surface texture. A caller's later replacement is preserved. Materials and geometry remain caller-owned unless their dispose flag is set. The caller also owns framework roots and must unmount them before disposing the surface.
 
 ## `CapabilityReport`
 
@@ -109,29 +115,29 @@ type CapabilityReport = {
 };
 ```
 
-desktop環境の`touch-unavailable`は、その端末でTouch PointerEventを検出できないという診断であり、初期化失敗ではありません。
+`touch-unavailable` on a desktop is diagnostic; it is not an initialization failure.
 
 ## `HtmlSurfaceDebugState`
 
-`kind`は`'none'`、`'blocked'`、`'surface'`のいずれかです。必要に応じて`objectName`、`surfaceId`、`uv`、`domPoint`、`focusTarget`、`capturedPointerId`を含みます。デモHUDや開発時の可視化を想定し、毎フレームのアプリケーション状態には使わないでください。
+`kind` is `'none'`, `'blocked'`, or `'surface'`. Depending on the state, the object may also contain `objectName`, `surfaceId`, `uv`, `domPoint`, `focusTarget`, and `capturedPointerId`. It is intended for diagnostics and demo HUDs, not application state.
 
 ## `HtmlSurfaceError`
 
-`HtmlSurfaceError`は判定可能な`code`を持ちます。
+`HtmlSurfaceError` exposes a machine-readable `code`.
 
-| code | 発生条件 |
+| Code | Condition |
 |---|---|
-| `manager-disposed` | 破棄済みManagerへSurfaceを追加 |
-| `duplicate-surface-id` | 同じManager内でIDが重複 |
-| `material-not-found` | MeshからMaterialを取得できない |
-| `material-index-out-of-range` | Materialスロットが範囲外 |
-| `material-binding-conflict` | 同一Materialプロパティを別Surfaceが使用中 |
-| `invalid-map-property` | 適用先がTextureプロパティとして不正 |
-| `backend-unavailable` | 要求したBackendを利用できない |
-| `backend-initialization-failed` | HTMLElementのmountに失敗 |
-| `surface-disposed` | 破棄済みSurfaceを再設定 |
+| `manager-disposed` | Adding a surface after manager disposal. |
+| `duplicate-surface-id` | Duplicate ID within one manager. |
+| `material-not-found` | No material can be resolved from the mesh. |
+| `material-index-out-of-range` | Material slot is out of range. |
+| `material-binding-conflict` | Another surface owns the same material property. |
+| `invalid-map-property` | Binding target is not a valid texture property. |
+| `backend-unavailable` | Requested backend is unavailable. |
+| `backend-initialization-failed` | Mounting the element failed. |
+| `surface-disposed` | Reconfiguring a disposed surface. |
 
-## Vanilla例
+## Vanilla example
 
 ```ts
 import * as THREE from 'three';
@@ -154,16 +160,15 @@ const surface = manager.add({
 });
 
 await surface.ready;
-surface.invalidate();
 
 // cleanup
 surface.dispose();
 manager.dispose();
 ```
 
-## React例
+## React example
 
-Reactは通常のHTMLElementを生成する利用側ライブラリです。HTML Surface ThreeのコアはReactへ依存しません。
+React only supplies an ordinary `HTMLElement`; the core has no React dependency.
 
 ```tsx
 import { createRoot } from 'react-dom/client';
@@ -174,9 +179,8 @@ element.style.cssText = 'width: 640px; height: 420px';
 const surface = manager.add({ element, mesh: monitorScreen });
 const root = createRoot(element);
 root.render(<ControlPanel />);
-surface.invalidate();
 
-// Reactを先に停止してからSurfaceを解放する
+// Stop React before disposing the surface.
 root.unmount();
 surface.dispose();
 ```

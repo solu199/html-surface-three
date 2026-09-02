@@ -24,7 +24,7 @@ npm install
 npm run dev
 ```
 
-The stable public API is exported from `html-surface-three`. Backend SPI and other replaceable boundaries are exported from `html-surface-three/experimental` and may change between release candidates.
+The stable public API is exported from `html-surface-three`. Backend SPI and other replaceable boundaries are exported from `html-surface-three/experimental` and may change between releases.
 
 ## Verification
 

@@ -144,7 +144,7 @@ console.log(JSON.stringify({
     ),
     'utf8',
   ));
-  if (manifest.version !== '0.1.0-rc.2') {
+  if (manifest.version !== sourceManifest.version) {
     throw new Error(`Unexpected installed version: ${manifest.version}`);
   }
 
