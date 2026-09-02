@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/html-surface-three"><img alt="npm next version" src="https://img.shields.io/npm/v/html-surface-three/next?label=npm%20next&color=59d8c4"></a>
+  <a href="https://www.npmjs.com/package/html-surface-three"><img alt="npm version" src="https://img.shields.io/npm/v/html-surface-three?color=59d8c4"></a>
   <a href="https://github.com/solu199/html-surface-three/actions/workflows/ci.yml"><img alt="CI status" src="https://github.com/solu199/html-surface-three/actions/workflows/ci.yml/badge.svg"></a>
   <a href="https://github.com/solu199/html-surface-three/blob/main/LICENSE"><img alt="MIT license" src="https://img.shields.io/npm/l/html-surface-three"></a>
   <img alt="Three.js r184 to r185" src="https://img.shields.io/badge/three.js-r184%E2%80%93r185-111111">
@@ -38,7 +38,7 @@ An **HTML Surface** is more than an HTML texture. It treats an `HTMLElement` as 
 - input occlusion by ordinary scene meshes
 - multiple surfaces, ownership, restoration, and disposal
 
-HTML-in-Canvas, Three.js `HTMLTexture`, and `three-html-render` are replaceable rendering Backends or low-level building blocks. The library's value lives above them: binding any UV-mapped Mesh, routing input through the scene, and keeping the whole surface lifecycle coherent.
+HTML-in-Canvas, Three.js `HTMLTexture`, and `three-html-render` are replaceable rendering backends or low-level building blocks. HTML Surface Three is the interaction and lifecycle layer above them: it binds any UV-mapped mesh, routes input through the scene, and keeps cleanup reversible.
 
 ## Why not just an HTML texture?
 
@@ -54,10 +54,8 @@ This is not a DOM overlay. The UI is uploaded as a Texture, so it follows Mesh d
 
 ## Install
 
-`0.1.0-rc.2` is a release candidate and is published under the `next` dist-tag.
-
 ```bash
-npm install html-surface-three@next three@0.185.1
+npm install html-surface-three three@0.185.1
 ```
 
 Requirements:
@@ -87,6 +85,7 @@ const manager = new HtmlSurfaceManager({
   camera,
   scene,
   backend: 'auto',
+  raycastRoots: [world, uiSurfaces],
 });
 
 const surface = manager.add({
@@ -108,7 +107,6 @@ function frame() {
 frame();
 
 await surface.ready;
-surface.invalidate();
 
 // Cleanup
 surface.dispose();
@@ -116,6 +114,8 @@ manager.dispose();
 ```
 
 `disposeMaterial` and `disposeGeometry` default to `false`. Resources owned by your application are not destroyed implicitly.
+
+DOM mutations and `input`, `change`, `scroll`, and `compositionend` events invalidate the texture automatically. Call `surface.invalidate()` only for paint changes the library cannot observe, such as externally loaded assets or canvas content.
 
 ## React panel
 
@@ -135,7 +135,6 @@ const surface = manager.add({
 
 const root = createRoot(element);
 root.render(<ControlPanel />);
-surface.invalidate();
 
 // Stop React before disposing the Surface.
 root.unmount();
@@ -143,6 +142,25 @@ surface.dispose();
 ```
 
 The live demo mounts a complete React dashboard—with navigation, button state, text input, checkbox, range drag, and scrolling—on a moving and rotating 3D monitor. A second Vanilla Surface demonstrates multi-surface routing and occlusion.
+
+## Raycast performance
+
+By default, pointer routing recursively raycasts `scene.children`, preserving ordinary scene-mesh occlusion. In a large scene, pass a small set of non-overlapping roots instead:
+
+```ts
+const raycastRoots = [interactiveWorld, uiSurfaces];
+const manager = new HtmlSurfaceManager({
+  renderer,
+  camera,
+  scene,
+  raycastRoots,
+});
+
+// The same array is read on every route.
+raycastRoots.push(newlyLoadedArea);
+```
+
+Every interactive surface and every occluder that should block it must be below one of these roots. An empty array intentionally disables pointer hits.
 
 ## Backends
 
@@ -172,7 +190,7 @@ The default Backend is the stable polyfill path. See the complete [browser matri
 - The polyfill path uses SVG `foreignObject` and texture uploads.
 - Cross-origin media, iframe content, DRM, complex CSS, and native form styling remain browser-constrained.
 - Overlapping UVs, alternate UV channels, `SkinnedMesh`, and `InstancedMesh` are outside the release-candidate guarantee.
-- Scene-wide recursive raycasting needs application-specific optimization in very large scenes.
+- Pointer routing uses recursive raycasting; restrict it with `raycastRoots` in very large scenes.
 - The DOM accessibility tree and the visual 3D position are not the same thing.
 - React Three Fiber and WebXR adapters are planned, not stable APIs.
 

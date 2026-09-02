@@ -1,38 +1,37 @@
-# 現時点の制約
+# Current limitations
 
-## 描画
+## Rendering
 
-- polyfill BackendはSVG `foreignObject`とTexture uploadを使うため、大きいDOMや高頻度更新ではpaintコストが増えます。
-- CSS、web font、form control、text selectionの外観はブラウザとOSで差が出ます。
-- CORSを許可しない画像／動画、iframe、DRMや保護コンテンツは完全にTexture化できません。
-- 動画decoderやmedia playerは提供しません。再生制御は既存のHTML Media APIへ委ねます。
+- The polyfill uses SVG `foreignObject` and texture uploads, so large DOM trees and frequent repainting can be expensive.
+- CSS, web fonts, form controls, and text selection can differ across browsers and operating systems.
+- Cross-origin media without CORS, iframes, DRM, and protected content cannot be captured completely.
+- Video decoding and playback remain the responsibility of the HTML Media API.
 
-## GeometryとUV
+## Geometry and UVs
 
-- 入力可能なSurfaceにはRaycastで取得できるUVが必要です。
-- UVが重複するMeshは、一つの交差UVだけでは元のDOM位置を一意に特定できません。
-- Surfaceごとの別UV channelはまだ選択できません。
-- 極端に歪んだ三角形、SkinnedMesh、InstancedMeshはリリース候補の保証対象外です。
-- 複数Materialは`materialIndex`で扱えますが、Geometry groupの複雑な構成は個別確認が必要です。
+- Interactive surfaces need raycast UVs.
+- Overlapping UVs cannot be mapped uniquely back to one DOM position.
+- Alternate UV channels are not selectable per surface.
+- Highly distorted triangles, `SkinnedMesh`, and `InstancedMesh` are not guaranteed.
+- Multi-material meshes support `materialIndex`; complex geometry-group layouts need application testing.
 
-## 入力とアクセシビリティ
+## Input and accessibility
 
-- 実DOMを画面外へparkし、交差点へ一時整列してbrowser hit testingを利用します。DOM全体をCSS 3D変形しているわけではありません。
-- keyboardとIMEは実DOMへ委譲しますが、全OS・全IMEの候補UI位置や描画一致までは保証しません。
-- DOMアクセシビリティツリーの順序と3D空間の視覚位置は一致しない場合があります。
-- 複数同時touchと複雑なtext selectionは限定的です。
-- WebXR controller／hand入力はまだ公開Adapterがありません。
+- The live DOM is parked off-screen and temporarily aligned for browser hit testing; it is not CSS-transformed into 3D.
+- Keyboard and IME behavior use the real DOM, but candidate-window placement and rendering are not guaranteed across every OS and IME.
+- Accessibility-tree order can differ from the visual 3D layout.
+- Simultaneous multi-touch and complex text selection are limited.
+- There is no WebXR controller or hand-input adapter.
 
-## 性能
+## Performance
 
-- 既定の遮蔽判定はscene全体へのrecursive Raycastです。Surfaceやobjectが多いsceneではlayer、対象root、BVHなどの最適化が必要です。
-- DOM mutationのたびにinvalidateされるため、連続animationをDOM側で行うとpaint／uploadがボトルネックになります。
-- Texture解像度はHTMLElementのpixel sizeに依存します。表示サイズと画質に応じてDOM寸法を調整してください。
+- Pointer routing recursively raycasts `scene.children` by default. Use non-overlapping `raycastRoots` to limit work in large scenes; every participating surface and occluder must be below a configured root.
+- DOM mutations and `input`, `change`, `scroll`, and `compositionend` invalidate automatically. Continuous DOM animation can make paint and upload the bottleneck; manual `invalidate()` is still available for non-observable paint changes.
+- Texture resolution follows the element's pixel dimensions. Balance DOM size against display size and image quality.
 
-## APIと互換性
+## API and compatibility
 
-- 対応Three.js範囲は`>=0.184.0 <0.186.0`です。r185で開発・検証しています。
-- `html-surface-three/experimental`のBackend SPIはsemver互換性保証外です。
-- native HTML-in-Canvasは実験扱いで、stable Tierには含みません。
-- React Three FiberとWebXR向けの統合層は将来機能です。Vanilla coreからは利用できますが専用Adapterはありません。
-- `0.1.0-rc.2`はnpmの`next` dist-tagで公開します。正式版の`latest`保証ではありません。
+- Supported Three.js range: `>=0.184.0 <0.186.0`.
+- The backend SPI under `html-surface-three/experimental` is outside the stable semver contract.
+- Native HTML-in-Canvas remains experimental and outside the stable browser tier.
+- React Three Fiber and WebXR adapters are deferred; the framework-independent core remains usable directly.

@@ -1,6 +1,6 @@
 {
   "name": "html-surface-three",
-  "version": "0.1.0-rc.2",
+  "version": "0.1.0",
   "private": false,
   "type": "module",
   "description": "Manage interactive HTML UI as Three.js mesh surfaces with texture rendering, UV mapping, occlusion-aware input, and lifecycle control.",
