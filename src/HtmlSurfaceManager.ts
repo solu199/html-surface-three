@@ -120,6 +120,7 @@ export type HtmlSurfaceManagerOptions = {
   renderer: WebGLRenderer;
   camera: Camera;
   scene: Scene;
+  raycastRoots?: readonly Object3D[];
   backend?: BackendPreference | HtmlTextureBackend;
   onDebugChange?: (state: HtmlSurfaceDebugState) => void;
 };
@@ -157,6 +158,7 @@ export class HtmlSurfaceManager {
   private readonly renderer: WebGLRenderer;
   private readonly camera: Camera;
   private readonly scene: Scene;
+  private readonly raycastRoots?: readonly Object3D[];
   private readonly backend: HtmlTextureBackend;
   private readonly capabilities: CapabilityReport;
   private readonly inputRouter: DomInputRouter;
@@ -175,6 +177,7 @@ export class HtmlSurfaceManager {
     this.renderer = options.renderer;
     this.camera = options.camera;
     this.scene = options.scene;
+    this.raycastRoots = options.raycastRoots;
     const backendOption = options.backend ?? 'auto';
     const requestedBackend: BackendPreference =
       typeof backendOption === 'string'
@@ -402,7 +405,10 @@ export class HtmlSurfaceManager {
     this.raycaster.setFromCamera(this.pointerNdc, this.camera);
 
     const intersections = this.raycaster
-      .intersectObjects(this.scene.children, true)
+      .intersectObjects(
+        (this.raycastRoots ?? this.scene.children) as Object3D[],
+        true,
+      )
       .map((hit) => ({
         distance: hit.distance,
         object: hit.object,
