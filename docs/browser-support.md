@@ -1,6 +1,6 @@
 # ブラウザ互換性
 
-`0.1.0-rc.2`はstableブラウザを優先し、保証範囲を段階化しています。標準経路はpolyfill Backendです。
+`0.1.0`はstableブラウザを優先し、保証範囲を段階化しています。標準経路はpolyfill Backendです。
 
 ## 段階保証
 
@@ -12,7 +12,7 @@
 | Tier 2 | Playwright WebKit | Firefoxと同じsmoke |
 | Experimental | native HTML-in-Canvas対応環境 | 検出と明示選択のみ。互換性保証外 |
 
-検証基準日は2026-07-24です。Tier 1はWindows上のstable channelを使い、Tier 2はPlaywrightが管理するbrowser buildを使います。
+検証基準日は2026-09-02です。Tier 1はWindows上のstable channelを使い、Tier 2はPlaywrightが管理するbrowser buildを使います。
 
 Playwright WebKitは実Safariそのものではありません。Safariの完全保証を意味しません。
 

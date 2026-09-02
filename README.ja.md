@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/html-surface-three"><img alt="npm next version" src="https://img.shields.io/npm/v/html-surface-three/next?label=npm%20next&color=59d8c4"></a>
+  <a href="https://www.npmjs.com/package/html-surface-three"><img alt="npm version" src="https://img.shields.io/npm/v/html-surface-three?color=59d8c4"></a>
   <a href="https://github.com/solu199/html-surface-three/actions/workflows/ci.yml"><img alt="CI status" src="https://github.com/solu199/html-surface-three/actions/workflows/ci.yml/badge.svg"></a>
   <a href="https://github.com/solu199/html-surface-three/blob/main/LICENSE"><img alt="MIT license" src="https://img.shields.io/npm/l/html-surface-three"></a>
   <img alt="Three.js r184 to r185" src="https://img.shields.io/badge/three.js-r184%E2%80%93r185-111111">
@@ -54,10 +54,8 @@ DOMオーバーレイではありません。UIはTextureとしてアップロ�
 
 ## インストール
 
-`0.1.0-rc.2`はリリース候補で、npmの`next` dist-tagから公開しています。
-
 ```bash
-npm install html-surface-three@next three@0.185.1
+npm install html-surface-three three@0.185.1
 ```
 
 必要環境:
@@ -87,6 +85,7 @@ const manager = new HtmlSurfaceManager({
   camera,
   scene,
   backend: 'auto',
+  raycastRoots: [world, uiSurfaces],
 });
 
 const surface = manager.add({
@@ -108,13 +107,14 @@ function frame() {
 frame();
 
 await surface.ready;
-surface.invalidate();
 
 surface.dispose();
 manager.dispose();
 ```
 
 `disposeMaterial`と`disposeGeometry`は既定で`false`です。利用者所有のThree.js resourceを暗黙に破棄しません。
+
+DOM mutationと`input`、`change`、`scroll`、`compositionend`はTextureを自動更新します。外部assetやcanvasなど、DOMから観測できない描画変更だけ`surface.invalidate()`で通知してください。
 
 ## Reactパネル
 
@@ -134,13 +134,16 @@ const surface = manager.add({
 
 const root = createRoot(element);
 root.render(<ControlPanel />);
-surface.invalidate();
 
 root.unmount();
 surface.dispose();
 ```
 
 ライブデモでは、navigation、button状態、text input、checkbox、range drag、scrollを含むReactサイト全体を、動き・回転する3Dモニターへ表示します。別のVanilla Surfaceで複数Surfaceと遮蔽も確認できます。
+
+## Raycast性能
+
+既定は`scene.children`を再帰Raycastします。大規模sceneでは、重複しないrootの配列を`raycastRoots`に渡して対象を限定できます。Managerは毎回同じ配列を読むため、sceneの変化に合わせて配列を更新できます。操作対象のSurfaceと遮蔽に使うobjectは、すべていずれかのroot配下に置いてください。空配列はpointer hitを無効化します。
 
 ## Backend
 
@@ -169,8 +172,8 @@ Backend SPIは`html-surface-three/experimental`へ隔離し、stable facadeをTh
 
 - polyfillはSVG `foreignObject`とTexture uploadのコストを持つ
 - CORS media、iframe、DRM、複雑なCSS、native form外観はブラウザ制約を受ける
-- UV重複、別UV channel、`SkinnedMesh`、`InstancedMesh`はリリース候補の保証外
-- 大規模sceneではrecursive Raycastの最適化が必要
+- UV重複、別UV channel、`SkinnedMesh`、`InstancedMesh`はstable保証外
+- 大規模sceneでは`raycastRoots`でrecursive Raycastを限定する
 - DOMアクセシビリティツリーと3D上の見た目の位置は一致しない
 - React Three Fiber／WebXR Adapterは将来機能
 
