@@ -189,7 +189,7 @@ The default Backend is the stable polyfill path. See the complete [browser matri
 
 - The polyfill path uses SVG `foreignObject` and texture uploads.
 - Cross-origin media, iframe content, DRM, complex CSS, and native form styling remain browser-constrained.
-- Overlapping UVs, alternate UV channels, `SkinnedMesh`, and `InstancedMesh` are outside the release-candidate guarantee.
+- Overlapping UVs, alternate UV channels, `SkinnedMesh`, and `InstancedMesh` are outside the stable guarantee.
 - Pointer routing uses recursive raycasting; restrict it with `raycastRoots` in very large scenes.
 - The DOM accessibility tree and the visual 3D position are not the same thing.
 - React Three Fiber and WebXR adapters are planned, not stable APIs.
